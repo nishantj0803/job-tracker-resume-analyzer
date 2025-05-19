@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Analyzer Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Resume Analyzer Test</h1>
+    
+    <h2>Resume Text</h2>
+    <textarea id="resumeText">Experienced Python developer with skills in Flask, Django, and machine learning.</textarea>
+    
+    <h2>Job Description</h2>
+    <textarea id="jobDescription">Looking for a Python developer with experience in Flask and machine learning.</textarea>
+    
+    <button onclick="analyzeResume()">Analyze</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        async function analyzeResume() {
+            const resumeText = document.getElementById('resumeText').value;
+            const jobDescription = document.getElementById('jobDescription').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.textContent = 'Analyzing...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/compare', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ resumeText, jobDescription })
+                });
+                
+                if (!response.ok) {
+                    throw new Error();
+                }
+                
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.textContent = ;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+next-env.d.ts
+
+# Next.js / Node.js specific
+node_modules/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.env.local
+*.env.*.local
+.DS_Store
+Thumbs.db
+
+# Python specific (assuming your Python code is in a subdirectory like 'python-resume-analyzer')
+python-resume-analyzer/venv/
+python-resume-analyzer/__pycache__/
+python-resume-analyzer/*.pyc
+python-resume-analyzer/*.pyo
+python-resume-analyzer/*.pyd
+python-resume-analyzer/.Python
+python-resume-analyzer/build/
+python-resume-analyzer/develop-eggs/
+python-resume-analyzer/dist/
+python-resume-analyzer/downloads/
+python-resume-analyzer/eggs/
+python-resume-analyzer/.eggs/
+python-resume-analyzer/lib/
+python-resume-analyzer/lib64/
+python-resume-analyzer/parts/
+python-resume-analyzer/sdist/
+python-resume-analyzer/var/
+python-resume-analyzer/wheels/
+python-resume-analyzer/share/python-wheels/
+python-resume-analyzer/*.egg-info/
+python-resume-analyzer/.installed.cfg
+python-resume-analyzer/*.egg
+python-resume-analyzer/MANIFEST
+python-resume-analyzer/.env # If you have a .env file specifically for Python
+python-resume-analyzer/instance/ # Common for Flask instance configs
+
+# General IDE/Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS specific (if not already covered by .DS_Store)
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+._*
+
+# Windows specific (if not already covered by Thumbs.db)
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
