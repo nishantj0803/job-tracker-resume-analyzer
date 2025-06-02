@@ -1,25 +1,31 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search } from "lucide-react"
-import Link from "next/link"
-import { JobsTable } from "@/components/jobs-table"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { MainNav } from "@/components/main-nav"
+// File: app/jobs/page.tsx
+"use client"; // Add this if not present
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// import { Plus } from "lucide-react"; // No longer needed here
+import { Search } from "lucide-react";
+import Link from "next/link";
+import { JobsTable } from "@/components/jobs-table";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { MainNav } from "@/components/main-nav";
+import { useAuth } from "@/components/auth-provider"; // Import useAuth
+
 
 export default function JobsPage() {
+  const { user, isAdmin } = useAuth(); // Get user and isAdmin status
+
   return (
     <div className="flex min-h-screen flex-col">
       <MainNav />
       <DashboardShell>
-        <DashboardHeader heading="Job Applications" text="Manage and track all your job applications.">
-          <Button asChild>
-            <Link href="/jobs/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Job
-            </Link>
-          </Button>
+        <DashboardHeader 
+          heading="Job Listings" 
+          text="Browse and apply for available job positions."
+        >
+          {/* "Add Job" button removed for regular users. Admins add jobs via their dashboard. */}
         </DashboardHeader>
         <div className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row">
@@ -34,10 +40,9 @@ export default function JobsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="applied">Applied</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                  <SelectItem value="offer">Offer</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
+                  {/* These statuses might not be relevant if users are only viewing open jobs */}
+                  <SelectItem value="open">Open</SelectItem> 
+                  <SelectItem value="closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
               <Select defaultValue="newest">

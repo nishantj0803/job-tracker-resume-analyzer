@@ -1,26 +1,31 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowUpRight, BarChart3, BriefcaseBusiness, Calendar, Clock, FileText, Plus } from "lucide-react"
-import Link from "next/link"
-import { JobsTable } from "@/components/jobs-table"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { MainNav } from "@/components/main-nav"
+// File: app/dashboard/page.tsx
+"use client"; // Add this if not present, as useAuth needs to be client-side
+
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowUpRight, BarChart3, BriefcaseBusiness, Calendar, Clock, FileText } from "lucide-react";
+// import { Plus } from "lucide-react"; // No longer needed here
+import { JobsTable } from "@/components/jobs-table";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { MainNav } from "@/components/main-nav";
+import { useAuth } from "@/components/auth-provider"; // Import useAuth
 
 export default function DashboardPage() {
+  const { user, isAdmin } = useAuth(); // Get user and isAdmin status
+
   return (
     <div className="flex min-h-screen flex-col">
       <MainNav />
       <DashboardShell>
-        <DashboardHeader heading="Dashboard" text="Track your job applications and resume performance.">
-          <Button asChild>
-            <Link href="/jobs/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Job
-            </Link>
-          </Button>
+        <DashboardHeader 
+          heading="Dashboard" 
+          text="Track your job applications and resume performance."
+        >
+          {/* "Add Job" button removed for regular users. Admins add jobs via their dashboard. */}
         </DashboardHeader>
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
@@ -36,7 +41,7 @@ export default function DashboardPage() {
                   <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">24</div>
+                  <div className="text-2xl font-bold">24</div> {/* Placeholder */}
                   <p className="text-xs text-muted-foreground">+5 from last month</p>
                 </CardContent>
               </Card>
@@ -46,7 +51,7 @@ export default function DashboardPage() {
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">32%</div>
+                  <div className="text-2xl font-bold">32%</div> {/* Placeholder */}
                   <p className="text-xs text-muted-foreground">+2% from last month</p>
                 </CardContent>
               </Card>
@@ -56,7 +61,7 @@ export default function DashboardPage() {
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">78/100</div>
+                  <div className="text-2xl font-bold">78/100</div> {/* Placeholder */}
                   <div className="mt-2">
                     <Progress value={78} className="h-2" />
                   </div>
@@ -68,7 +73,7 @@ export default function DashboardPage() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">3</div>
+                  <div className="text-2xl font-bold">3</div> {/* Placeholder */}
                   <p className="text-xs text-muted-foreground">Next: Frontend Developer (2 days)</p>
                 </CardContent>
               </Card>
@@ -153,6 +158,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {/* Placeholder upcoming items */}
                   <div className="flex items-center justify-between border-b pb-4">
                     <div className="space-y-1">
                       <p className="font-medium">Frontend Developer at TechCorp</p>
@@ -165,30 +171,7 @@ export default function DashboardPage() {
                       <div className="text-sm font-medium text-destructive">2 days left</div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between border-b pb-4">
-                    <div className="space-y-1">
-                      <p className="font-medium">Full Stack Engineer at WebSolutions</p>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="mr-1 h-4 w-4" />
-                        <span>Technical Interview</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="text-sm font-medium text-amber-500">5 days left</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="font-medium">UX Designer at DesignHub</p>
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="mr-1 h-4 w-4" />
-                        <span>Portfolio Submission</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="text-sm font-medium text-muted-foreground">1 week left</div>
-                    </div>
-                  </div>
+                  {/* More items */}
                 </div>
               </CardContent>
             </Card>

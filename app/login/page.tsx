@@ -1,14 +1,14 @@
+// File: app/login/page.tsx
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { BarChart3, Loader2 } from "lucide-react"
+import { BarChart3, Loader2, ShieldCheck } from "lucide-react" // Added ShieldCheck
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -25,16 +25,10 @@ export default function LoginPage() {
 
     try {
       await login(email, password)
-      toast({
-        title: "Login successful",
-        description: "Welcome back to JobTrackr!",
-      })
+      // Toast is handled within login function now for success
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "Please check your credentials and try again.",
-        variant: "destructive",
-      })
+      // Toast for failure is handled within login function now
+      // No need to duplicate toast here if login function already shows it
     } finally {
       setIsLoading(false)
     }
@@ -65,14 +59,15 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                  {/* <Link href="/forgot-password" className="text-xs text-primary hover:underline">
                     Forgot password?
-                  </Link>
+                  </Link> */}
                 </div>
                 <Input
                   id="password"
@@ -80,6 +75,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>
@@ -98,6 +94,12 @@ export default function LoginPage() {
                 Don&apos;t have an account?{" "}
                 <Link href="/register" className="text-primary hover:underline">
                   Sign up
+                </Link>
+              </div>
+              <div className="mt-4 text-center text-sm">
+                <Link href="/admin/login" className="inline-flex items-center text-muted-foreground hover:text-primary">
+                  <ShieldCheck className="mr-1 h-4 w-4" />
+                  Admin Login
                 </Link>
               </div>
             </CardFooter>

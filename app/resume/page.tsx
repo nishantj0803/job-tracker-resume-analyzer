@@ -1,27 +1,27 @@
 // File: app/resume/page.tsx
-// Description: Displays the resume analysis results.
-
 "use client"
 
-import { useEffect, useState } from "react"
-// import Link from "next/link" // Keep if needed for other links
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { ArrowUpDown, CheckCircle2, FileText, Info, Loader2, XCircle } from "lucide-react"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { ResumeUploader } from "@/components/resume-uploader"
-import { KeywordMatcher } from "@/components/keyword-matcher" // Assuming this will also be dynamic
-import { MainNav } from "@/components/main-nav"
-import { useSearchParams, useRouter } from "next/navigation" // Added useRouter
-import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useState, useCallback } from "react";
+import Link from "next/link"; // Keep for potential links like Keyword Matcher
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { ArrowUpDown, CheckCircle2, FileText, Info, Loader2, MessageSquareWarning, XCircle, Eye, ListChecks, SearchCheck, BrainCircuit } from "lucide-react";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { ResumeUploader } from "@/components/resume-uploader";
+import { KeywordMatcher } from "@/components/keyword-matcher";
+import { MainNav } from "@/components/main-nav";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton"; // For loading state
+import { Separator } from "@/components/ui/separator";
+
 
 // Interface for the expected analysis result structure
 interface ResumeAnalysisResult {
-  score?: number; // Make fields optional to handle partial data or errors
+  score?: number;
   contentQuality?: number;
   atsCompatibility?: number;
   keywordOptimization?: number;
@@ -39,12 +39,84 @@ interface ResumeAnalysisResult {
   raw_text_preview?: string;
 }
 
+interface SectionDetailProps {
+  title: string;
+  data?: { clarity?: number; impact?: number; achievementFocus?: number; quantifiableResults?: number; relevance?: number; organization?: number; feedback?: string };
+  metric1Name?: string;
+  metric2Name?: string;
+}
+
+const SectionDetailCard: React.FC<SectionDetailProps> = ({ title, data, metric1Name, metric2Name }) => {
+  if (!data) return null;
+
+  const metric1Value = data.clarity ?? data.achievementFocus ?? data.relevance;
+  const metric2Value = data.impact ?? data.quantifiableResults ?? data.organization;
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {metric1Name && typeof metric1Value === 'number' && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-sm">
+              <span>{metric1Name}</span>
+              <span className="font-medium">{metric1Value}/10</span>
+            </div>
+            <Progress value={metric1Value * 10} className="h-2 mt-1" />
+          </div>
+        )}
+        {metric2Name && typeof metric2Value === 'number' && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-sm">
+              <span>{metric2Name}</span>
+              <span className="font-medium">{metric2Value}/10</span>
+            </div>
+            <Progress value={metric2Value * 10} className="h-2 mt-1" />
+          </div>
+        )}
+        {data.feedback && <p className="text-sm text-muted-foreground mt-2">{data.feedback}</p>}
+      </CardContent>
+    </Card>
+  );
+};
+
+
 export default function ResumePage() {
   const searchParams = useSearchParams();
-  const router = useRouter(); // For programmatic navigation
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("upload");
   const [analysisResult, setAnalysisResult] = useState<ResumeAnalysisResult | null>(null);
-  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true); // Start true to show loading initially
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
+
+  const loadAnalysisFromStorage = useCallback(() => {
+    console.log("ResumePage: Attempting to load analysis from localStorage.");
+    setIsLoadingAnalysis(true);
+    const storedResult = localStorage.getItem("resumeAnalysisResult");
+    if (storedResult) {
+      try {
+        const parsedResult = JSON.parse(storedResult) as ResumeAnalysisResult;
+        console.log("ResumePage: Parsed analysis from localStorage:", parsedResult);
+        setAnalysisResult(parsedResult);
+        // If we loaded a result (even an error one), and the URL doesn't specify a tab, switch to analysis.
+        if (!searchParams.get("tab")) {
+             setActiveTab("analysis");
+        }
+      } catch (e) {
+        console.error("ResumePage: Failed to parse stored analysis result:", e);
+        setAnalysisResult({ error: "Could not load previous analysis data. It might be corrupted." } as ResumeAnalysisResult);
+        if (!searchParams.get("tab")) {
+            setActiveTab("analysis"); // Still show error on analysis tab
+        }
+      }
+    } else {
+      console.log("ResumePage: No resumeAnalysisResult found in localStorage.");
+      setAnalysisResult(null); // No data to show
+    }
+    setIsLoadingAnalysis(false);
+  }, [searchParams]);
+
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -54,61 +126,57 @@ export default function ResumePage() {
 
     const resumeAnalyzedFlag = localStorage.getItem("resumeAnalyzed");
     if (resumeAnalyzedFlag === "true") {
-      const storedResult = localStorage.getItem("resumeAnalysisResult");
-      if (storedResult) {
-        try {
-          const parsedResult = JSON.parse(storedResult) as ResumeAnalysisResult;
-          setAnalysisResult(parsedResult);
-          setActiveTab("analysis"); 
-        } catch (e) {
-          console.error("Failed to parse stored analysis result:", e);
-          setAnalysisResult({ error: "Could not load analysis results. The data might be corrupted." } as ResumeAnalysisResult);
-          setActiveTab("analysis"); // Still go to analysis to show error
+      loadAnalysisFromStorage();
+      localStorage.removeItem("resumeAnalyzed"); // Clear the flag after processing
+      // Keep resumeAnalysisResult in localStorage for now, ResumeUploader will clear it on new file selection
+    } else {
+        // If not coming from a fresh analysis, still try to load any existing data
+        // for example, if user navigates directly to /resume?tab=analysis
+        if (tabParam === "analysis") {
+            loadAnalysisFromStorage();
+        } else {
+            setIsLoadingAnalysis(false); // Not trying to load analysis for other tabs initially
         }
-      } else {
-         // Flag is set but no data, could mean an issue or direct navigation
-         // If navigating directly to /resume?tab=analysis without prior upload, this is expected
-         console.warn("resumeAnalyzed flag set, but no analysisResult in localStorage.");
-         setAnalysisResult(null); // Ensure no stale data is shown
-      }
-      // Clear flags after processing
-      localStorage.removeItem("resumeAnalyzed");
-      localStorage.removeItem("resumeAnalysisResult");
     }
-    setIsLoadingAnalysis(false); // Done with initial loading/checking
-  }, [searchParams]);
+  }, [searchParams, loadAnalysisFromStorage]);
+
 
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
-    router.push(`/resume?tab=${newTab}`, { scroll: false }); // Update URL without full reload
+    router.push(`/resume?tab=${newTab}`, { scroll: false });
+    if (newTab === "analysis" && !analysisResult) {
+        loadAnalysisFromStorage(); // Try to load if switching to analysis tab and no data yet
+    }
   };
   
   const renderAnalysisContent = () => {
-    if (isLoadingAnalysis) { // Show skeleton when loading initial analysis
+    if (isLoadingAnalysis) {
       return (
-        <div className="space-y-6 p-4">
+        <div className="space-y-6 p-1">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => ( <Card key={i}><CardHeader><Skeleton className="h-5 w-2/3 mb-2" /><Skeleton className="h-4 w-1/2" /></CardHeader><CardContent><Skeleton className="h-8 w-1/3 mb-2" /><Skeleton className="h-3 w-full" /></CardContent></Card>))}
+            {[...Array(4)].map((_, i) => ( <Card key={i}><CardHeader className="pb-2"><Skeleton className="h-5 w-3/5 mb-1" /></CardHeader><CardContent><Skeleton className="h-7 w-1/2 mb-2" /><Skeleton className="h-2 w-full" /></CardContent></Card>))}
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><Skeleton className="h-6 w-3/5 mb-2" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /></CardContent></Card>
-            <Card><CardHeader><Skeleton className="h-6 w-3/5 mb-2" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /></CardContent></Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card><CardHeader><Skeleton className="h-6 w-1/2 mb-2" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /></CardContent></Card>
+            <Card><CardHeader><Skeleton className="h-6 w-1/2 mb-2" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent><Skeleton className="h-24 w-full" /></CardContent></Card>
           </div>
-          <Card><CardHeader><Skeleton className="h-7 w-2/5 mb-2" /><Skeleton className="h-5 w-3/5" /></CardHeader><CardContent><Skeleton className="h-48 w-full" /></CardContent></Card>
+          <Card><CardHeader><Skeleton className="h-7 w-2/5 mb-2" /><Skeleton className="h-5 w-3/5" /></CardHeader><CardContent><Skeleton className="h-40 w-full" /></CardContent></Card>
         </div>
       );
     }
 
     if (analysisResult?.error) {
       return (
-        <Card className="mt-4">
+        <Card className="mt-4 border-destructive bg-destructive/5">
           <CardHeader>
-            <CardTitle className="text-destructive flex items-center gap-2"><XCircle /> Analysis Error</CardTitle>
+            <CardTitle className="text-destructive flex items-center gap-2"><MessageSquareWarning /> Analysis Error</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-destructive-foreground">{analysisResult.error}</p>
-            <p className="text-sm text-muted-foreground">This might be due to an issue with the uploaded file (e.g., image-based PDF, password-protected) or a problem with the analysis service.</p>
-            <Button onClick={() => handleTabChange("upload")} className="mt-2">Try Uploading Again</Button>
+            <p className="font-medium">{analysisResult.error}</p>
+            <p className="text-sm text-muted-foreground">This might be due to an issue with the uploaded file (e.g., image-based PDF, password-protected, unreadable format) or a problem with the analysis service.</p>
+            <Button onClick={() => handleTabChange("upload")} className="mt-2">
+              Upload a Different Resume
+            </Button>
           </CardContent>
         </Card>
       );
@@ -116,105 +184,92 @@ export default function ResumePage() {
     
     if (!analysisResult) {
       return (
-        <Card className="mt-4">
+        <Card className="mt-4 border-dashed">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Info className="text-blue-500" /> No Analysis Data Available</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Info className="text-primary" /> No Analysis Data Available</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>It looks like you haven't analyzed a resume yet, or the previous analysis data could not be loaded.</p>
+            <p>It looks like you haven't analyzed a resume yet.</p>
             <Button onClick={() => handleTabChange("upload")} className="mt-2">Upload & Analyze Resume</Button>
           </CardContent>
         </Card>
       );
     }
 
-    // Main analysis display
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Overall Score</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analysisResult.score ?? "N/A"}/100</div>
-              {typeof analysisResult.score === 'number' && <div className="mt-2"> <Progress value={analysisResult.score} className="h-2" /> </div>}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Content Quality</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analysisResult.contentQuality ?? "N/A"}/100</div>
-               {typeof analysisResult.contentQuality === 'number' && <div className="mt-2"> <Progress value={analysisResult.contentQuality} className="h-2" /> </div>}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">ATS Compatibility</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analysisResult.atsCompatibility ?? "N/A"}/100</div>
-              {typeof analysisResult.atsCompatibility === 'number' && <div className="mt-2"> <Progress value={analysisResult.atsCompatibility} className="h-2" /> </div>}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Keyword Optimization</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{analysisResult.keywordOptimization ?? "N/A"}/100</div>
-              {typeof analysisResult.keywordOptimization === 'number' && <div className="mt-2"> <Progress value={analysisResult.keywordOptimization} className="h-2" /> </div>}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Overall Scores */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><BrainCircuit size={24}/> Overall Resume Scores</CardTitle>
+            <CardDescription>Summary of your resume's performance based on AI analysis.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { title: "Overall Score", value: analysisResult.score, Icon: FileText },
+              { title: "Content Quality", value: analysisResult.contentQuality, Icon: FileText },
+              { title: "ATS Compatibility", value: analysisResult.atsCompatibility, Icon: FileText },
+              { title: "Keyword Optimization", value: analysisResult.keywordOptimization, Icon: FileText },
+            ].map(({ title, value, Icon }) => (
+              <Card key={title} className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{value ?? "N/A"}{typeof value === 'number' ? "/100" : ""}</div>
+                  {typeof value === 'number' && <Progress value={value} className="h-2 mt-1" aria-label={`${title}: ${value} out of 100`} />}
+                </CardContent>
+              </Card>
+            ))}
+          </CardContent>
+        </Card>
+        
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Suggestions Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Improvement Suggestions</CardTitle>
+              <CardTitle className="flex items-center gap-2"><ListChecks size={20}/> Improvement Suggestions</CardTitle>
               <CardDescription>AI-powered recommendations to enhance your resume.</CardDescription>
             </CardHeader>
             <CardContent>
               {analysisResult.suggestions && analysisResult.suggestions.length > 0 ? (
                 <ul className="space-y-3">
                   {analysisResult.suggestions.map((suggestion, index) => (
-                    <li className="flex items-start gap-3" key={index}>
+                    <li className="flex items-start gap-3 text-sm" key={index}>
                       <div className="flex-shrink-0 rounded-full bg-primary/10 p-1.5 text-primary mt-1">
                         <Info className="h-4 w-4" />
                       </div>
-                      <p className="text-sm">{suggestion}</p>
+                      <p>{suggestion}</p>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">No specific suggestions at the moment. Your resume looks good in these areas!</p>
+                <p className="text-sm text-muted-foreground">No specific suggestions provided. Your resume looks great in these aspects or could not be fully assessed!</p>
               )}
             </CardContent>
           </Card>
+
+          {/* Keywords Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Keyword Analysis</CardTitle>
-              <CardDescription>Identified keywords in your resume.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><SearchCheck size={20}/> Keyword Analysis</CardTitle>
+              <CardDescription>Keywords identified in your resume and potential gaps.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" /> Present Keywords ({analysisResult.keywords?.present?.length ?? 0})
+                  <CheckCircle2 className="h-5 w-5 text-green-600" /> Present Keywords ({analysisResult.keywords?.present?.length ?? 0})
                 </h3>
                 {analysisResult.keywords?.present && analysisResult.keywords.present.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analysisResult.keywords.present.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-green-50 border-green-300 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300"> {keyword} </Badge>
+                      <Badge key={index} variant="outline" className="bg-green-50 border-green-400 text-green-700 dark:bg-green-900/40 dark:border-green-600 dark:text-green-300 text-xs"> {keyword} </Badge>
                     ))}
                   </div>
-                ) : (<p className="text-sm text-muted-foreground">No prominent keywords were identified from your resume.</p>)}
+                ) : (<p className="text-sm text-muted-foreground">No prominent keywords were automatically identified.</p>)}
               </div>
+              <Separator />
               <div>
                 <h3 className="text-base font-semibold mb-2 flex items-center gap-2">
                   <XCircle className="h-5 w-5 text-destructive" /> Suggested Missing Keywords ({analysisResult.keywords?.missing?.length ?? 0})
@@ -222,10 +277,10 @@ export default function ResumePage() {
                  {analysisResult.keywords?.missing && analysisResult.keywords.missing.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analysisResult.keywords.missing.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-red-50 border-red-300 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"> {keyword} </Badge>
+                      <Badge key={index} variant="outline" className="bg-red-50 border-red-400 text-red-700 dark:bg-red-900/40 dark:border-red-600 dark:text-red-300 text-xs"> {keyword} </Badge>
                     ))}
                   </div>
-                 ) : (<p className="text-sm text-muted-foreground">No critical missing keywords identified for general analysis. Use the 'Keyword Matcher' for specific jobs.</p>)}
+                 ) : (<p className="text-sm text-muted-foreground">No critical missing keywords flagged for general analysis. Use the Keyword Matcher for job-specific insights.</p>)}
               </div>
               <div className="pt-2">
                 <Button variant="outline" className="w-full" onClick={() => handleTabChange("keywords")}>
@@ -236,74 +291,32 @@ export default function ResumePage() {
           </Card>
         </div>
         
+        {/* Section-Specific Analysis */}
         {analysisResult.sections && Object.keys(analysisResult.sections).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Detailed Section Analysis</CardTitle>
-              <CardDescription>Breakdown of key resume sections.</CardDescription>
+              <CardTitle className="text-xl">Detailed Section Analysis</CardTitle>
+              <CardDescription>Breakdown of key resume sections based on AI review.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {analysisResult.sections.summary && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Summary</h3>
-                  <div className="grid gap-4 sm:grid-cols-2 mb-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm"> <span>Clarity</span> <span className="font-medium">{analysisResult.sections.summary.clarity ?? 'N/A'}/10</span> </div>
-                      {typeof analysisResult.sections.summary.clarity === 'number' && <Progress value={analysisResult.sections.summary.clarity * 10} className="h-2" />}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-sm"> <span>Impact</span> <span className="font-medium">{analysisResult.sections.summary.impact ?? 'N/A'}/10</span> </div>
-                      {typeof analysisResult.sections.summary.impact === 'number' && <Progress value={analysisResult.sections.summary.impact * 10} className="h-2" />}
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{analysisResult.sections.summary.feedback || "No specific feedback for summary."}</p>
-                </div>
-              )}
-              {analysisResult.sections.experience && (
-                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Work Experience</h3>
-                    <div className="grid gap-4 sm:grid-cols-2 mb-2">
-                        <div className="space-y-1">
-                        <div className="flex items-center justify-between text-sm"> <span>Achievement Focus</span> <span className="font-medium">{analysisResult.sections.experience.achievementFocus ?? 'N/A'}/10</span> </div>
-                        {typeof analysisResult.sections.experience.achievementFocus === 'number' && <Progress value={analysisResult.sections.experience.achievementFocus * 10} className="h-2" />}
-                        </div>
-                        <div className="space-y-1">
-                        <div className="flex items-center justify-between text-sm"> <span>Quantifiable Results</span> <span className="font-medium">{analysisResult.sections.experience.quantifiableResults ?? 'N/A'}/10</span> </div>
-                        {typeof analysisResult.sections.experience.quantifiableResults === 'number' && <Progress value={analysisResult.sections.experience.quantifiableResults * 10} className="h-2" />}
-                        </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{analysisResult.sections.experience.feedback || "No specific feedback for experience."}</p>
-                 </div>
-              )}
-               {analysisResult.sections.skills && (
-                 <div>
-                    <h3 className="text-lg font-semibold mb-2">Skills</h3>
-                    <div className="grid gap-4 sm:grid-cols-2 mb-2">
-                        <div className="space-y-1">
-                        <div className="flex items-center justify-between text-sm"> <span>Relevance</span> <span className="font-medium">{analysisResult.sections.skills.relevance ?? 'N/A'}/10</span> </div>
-                        {typeof analysisResult.sections.skills.relevance === 'number' && <Progress value={analysisResult.sections.skills.relevance * 10} className="h-2" />}
-                        </div>
-                        <div className="space-y-1">
-                        <div className="flex items-center justify-between text-sm"> <span>Organization</span> <span className="font-medium">{analysisResult.sections.skills.organization ?? 'N/A'}/10</span> </div>
-                        {typeof analysisResult.sections.skills.organization === 'number' && <Progress value={analysisResult.sections.skills.organization * 10} className="h-2" />}
-                        </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{analysisResult.sections.skills.feedback || "No specific feedback for skills."}</p>
-                 </div>
-              )}
+              <SectionDetailCard title="Summary" data={analysisResult.sections.summary} metric1Name="Clarity" metric2Name="Impact" />
+              <SectionDetailCard title="Work Experience" data={analysisResult.sections.experience} metric1Name="Achievement Focus" metric2Name="Quantifiable Results" />
+              <SectionDetailCard title="Skills" data={analysisResult.sections.skills} metric1Name="Relevance" metric2Name="Organization" />
             </CardContent>
           </Card>
         )}
+
+        {/* Raw Text Preview */}
          {analysisResult.raw_text_preview && (
           <Card>
             <CardHeader>
-              <CardTitle>Extracted Text Preview (First 800 Chars)</CardTitle>
-              <CardDescription>This is a preview of the text extracted from your resume for analysis.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Eye size={20}/> Extracted Text Preview</CardTitle>
+              <CardDescription>This is a preview of the text extracted from your resume that was used for analysis (first 800 characters).</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/50 dark:bg-muted/20 p-3 rounded-md max-h-60 overflow-y-auto">
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap bg-muted/50 dark:bg-muted/20 p-4 rounded-md max-h-60 overflow-y-auto font-mono">
                 {analysisResult.raw_text_preview}
-              </p>
+              </pre>
             </CardContent>
           </Card>
         )}
@@ -320,9 +333,9 @@ export default function ResumePage() {
           text="Upload, analyze, and optimize your resume for job applications."
         />
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
             <TabsTrigger value="upload">Upload & Analyze</TabsTrigger>
-            <TabsTrigger value="analysis" disabled={!analysisResult && !isLoadingAnalysis && activeTab !== 'analysis'}>Analysis Results</TabsTrigger>
+            <TabsTrigger value="analysis" disabled={isLoadingAnalysis && !analysisResult && activeTab !== 'analysis'}>Analysis Results</TabsTrigger>
             <TabsTrigger value="keywords">Keyword Matcher</TabsTrigger>
           </TabsList>
           

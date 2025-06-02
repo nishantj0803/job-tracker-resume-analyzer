@@ -54,7 +54,13 @@ TableFooter.displayName = "TableFooter"
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
+  // Ensure no direct whitespace is rendered here if children are dynamic
+  // One way is to ensure children are always valid table cell elements (td, th)
+  // or fragments containing only valid table cell elements.
+  // The original code was likely fine, but this comment serves as a reminder.
+  // The issue usually arises if you conditionally render text or use map functions
+  // that might introduce whitespace between elements directly inside <tr>.
   <tr
     ref={ref}
     className={cn(
@@ -62,7 +68,9 @@ const TableRow = React.forwardRef<
       className
     )}
     {...props}
-  />
+  >{/* Ensure no accidental whitespace before or after children if they are dynamic */}
+    {children}
+  </tr>
 ))
 TableRow.displayName = "TableRow"
 
