@@ -6,7 +6,7 @@ import type React from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
-// import { AdminNav } from "@/components/admin-nav"; // Removed as it's assumed to be in a parent admin layout
+import { AdminNav } from "@/components/admin-nav";
 import { Loader2 } from "lucide-react"
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -43,7 +43,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     // If this is the ONLY admin page, then AdminNav should be here,
     // and the duplication source is elsewhere.
     <div className="flex min-h-screen flex-col">
-      {/* <AdminNav />  <--- REMOVED FROM HERE */}
+      {<AdminNav />  }
       {children}
     </div>
   )

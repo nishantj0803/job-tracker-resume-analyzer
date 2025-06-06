@@ -1,12 +1,175 @@
+// app/analytics/page.tsx
 "use client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DashboardHeader } from "@/components/dashboard-header"
-import { DashboardShell } from "@/components/dashboard-shell"
-import { MainNav } from "@/components/main-nav"
-import { BarChart, LineChart, PieChart } from "@/components/ui/chart"
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardHeader } from "@/components/dashboard-header";
+import { DashboardShell } from "@/components/dashboard-shell";
+import { MainNav } from "@/components/main-nav";
+import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { getUserApplicationStats } from "@/lib/actions";
+import type { UserApplicationStats } from "@/lib/actions";
+import { Loader2, AlertCircle, BarChart3, BriefcaseBusiness, Trophy, Percent } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function LoadingState() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => <Card key={i}><CardHeader><Skeleton className="h-5 w-3/5" /></CardHeader><CardContent><Skeleton className="h-10 w-4/5" /></CardContent></Card>)}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card><CardHeader><CardTitle><Skeleton className="h-6 w-1/2" /></CardTitle><CardDescription><Skeleton className="h-4 w-3/4" /></CardDescription></CardHeader><CardContent className="h-[300px]"><Skeleton className="h-full w-full" /></CardContent></Card>
+        <Card><CardHeader><CardTitle><Skeleton className="h-6 w-1/2" /></CardTitle><CardDescription><Skeleton className="h-4 w-3/4" /></CardDescription></CardHeader><CardContent className="h-[300px]"><Skeleton className="h-full w-full" /></CardContent></Card>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 text-center">
+      <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
+      <h3 className="mt-4 text-lg font-semibold">No Application Data Found</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Start tracking your job applications to see your personalized analytics here.
+      </p>
+    </div>
+  );
+}
 
 export default function AnalyticsPage() {
+  const [stats, setStats] = useState<UserApplicationStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await getUserApplicationStats();
+        if ('error' in result) {
+          setError(result.error);
+          setStats(null);
+        } else {
+          setStats(result);
+        }
+      } catch (e: any) {
+        setError(e.message || "An unexpected error occurred while fetching your stats.");
+        setStats(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <LoadingState />;
+    }
+
+    if (error) {
+      return (
+        <div className="flex items-center justify-center p-6 bg-destructive/10 border border-destructive/30 rounded-md text-destructive">
+          <AlertCircle className="h-6 w-6 mr-3"/>
+          <p>Error loading analytics: {error}</p>
+        </div>
+      );
+    }
+    
+    if (!stats || stats.totalApplications === 0) {
+      return <EmptyState />;
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+              <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalApplications}</div>
+              <p className="text-xs text-muted-foreground">Total jobs you have applied to.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Interview Rate</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.interviewRate}%</div>
+              <p className="text-xs text-muted-foreground">From applications to interviews.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Offer Rate</CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.offerRate}%</div>
+              <p className="text-xs text-muted-foreground">From applications to offers.</p>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Application Status</CardTitle>
+              <CardDescription>Distribution of your application outcomes.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <PieChart
+                data={stats.statusDistribution}
+                index="name"
+                categories={["value"]}
+                valueFormatter={(value) => `${value} application(s)`}
+                className="h-[300px]"
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Companies Applied To</CardTitle>
+              <CardDescription>Your most frequent application targets.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <BarChart
+                data={stats.applicationsPerCompany}
+                index="name"
+                categories={["value"]}
+                valueFormatter={(value) => `${value} application(s)`}
+                className="h-[300px]"
+              />
+            </CardContent>
+          </Card>
+        </div>
+        <Card>
+            <CardHeader>
+              <CardTitle>Application Activity</CardTitle>
+              <CardDescription>Number of applications sent over time.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <LineChart
+                data={stats.applicationActivity}
+                index="name"
+                categories={["value"]}
+                colors={["primary"]}
+                valueFormatter={(value) => `${value} application(s)`}
+                className="h-[300px]"
+              />
+            </CardContent>
+          </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <MainNav />
@@ -15,201 +178,8 @@ export default function AnalyticsPage() {
           heading="Analytics"
           text="Track your job search progress and identify patterns to improve your strategy."
         />
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="applications">Applications</TabsTrigger>
-            <TabsTrigger value="resume">Resume</TabsTrigger>
-          </TabsList>
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="col-span-2">
-                <CardHeader>
-                  <CardTitle>Application Trends</CardTitle>
-                  <CardDescription>Number of applications over time</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <LineChart
-                    data={[
-                      { name: "Jan", value: 5 },
-                      { name: "Feb", value: 8 },
-                      { name: "Mar", value: 12 },
-                      { name: "Apr", value: 10 },
-                      { name: "May", value: 15 },
-                      { name: "Jun", value: 18 },
-                    ]}
-                    index="name"
-                    categories={["value"]}
-                    colors={["primary"]}
-                    valueFormatString="{value} applications"
-                    className="h-[300px]"
-                  />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Application Status</CardTitle>
-                  <CardDescription>Distribution of application statuses</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <PieChart
-                    data={[
-                      { name: "Applied", value: 15 },
-                      { name: "Interview", value: 5 },
-                      { name: "Offer", value: 2 },
-                      { name: "Rejected", value: 8 },
-                    ]}
-                    index="name"
-                    categories={["value"]}
-                    colors={["primary", "secondary", "success", "destructive"]}
-                    valueFormatter={(value) => `${value} applications`}
-                    className="h-[300px]"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Response Rate by Company</CardTitle>
-                <CardDescription>Interview invitations by company</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <BarChart
-                  data={[
-                    { name: "TechCorp", value: 4 },
-                    { name: "WebSolutions", value: 3 },
-                    { name: "DesignHub", value: 2 },
-                    { name: "InnovateTech", value: 5 },
-                    { name: "CloudSystems", value: 1 },
-                  ]}
-                  index="name"
-                  categories={["value"]}
-                  colors={["primary"]}
-                  valueFormatter={(value) => `${value} responses`}
-                  className="h-[300px]"
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="applications" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Application Success Rate</CardTitle>
-                <CardDescription>Percentage of applications that lead to interviews</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <LineChart
-                  data={[
-                    { name: "Jan", value: 20 },
-                    { name: "Feb", value: 25 },
-                    { name: "Mar", value: 30 },
-                    { name: "Apr", value: 28 },
-                    { name: "May", value: 32 },
-                    { name: "Jun", value: 35 },
-                  ]}
-                  index="name"
-                  categories={["value"]}
-                  colors={["primary"]}
-                  valueFormatter={(value) => `${value}%`}
-                  className="h-[300px]"
-                />
-              </CardContent>
-            </Card>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Applications by Industry</CardTitle>
-                  <CardDescription>Distribution across different industries</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <PieChart
-                    data={[
-                      { name: "Tech", value: 12 },
-                      { name: "Finance", value: 5 },
-                      { name: "Healthcare", value: 3 },
-                      { name: "Education", value: 2 },
-                      { name: "Retail", value: 2 },
-                    ]}
-                    index="name"
-                    categories={["value"]}
-                    colors={["primary", "secondary", "success", "warning", "destructive"]}
-                    valueFormatter={(value) => `${value} applications`}
-                    className="h-[300px]"
-                  />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Applications by Job Type</CardTitle>
-                  <CardDescription>Full-time, part-time, contract, etc.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <PieChart
-                    data={[
-                      { name: "Full-time", value: 18 },
-                      { name: "Contract", value: 4 },
-                      { name: "Part-time", value: 1 },
-                      { name: "Freelance", value: 1 },
-                    ]}
-                    index="name"
-                    categories={["value"]}
-                    colors={["primary", "secondary", "success", "warning"]}
-                    valueFormatter={(value) => `${value} applications`}
-                    className="h-[300px]"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          <TabsContent value="resume" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Resume Score Over Time</CardTitle>
-                <CardDescription>Track improvements in your resume score</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <LineChart
-                  data={[
-                    { name: "Jan", value: 65 },
-                    { name: "Feb", value: 68 },
-                    { name: "Mar", value: 72 },
-                    { name: "Apr", value: 75 },
-                    { name: "May", value: 78 },
-                    { name: "Jun", value: 80 },
-                  ]}
-                  index="name"
-                  categories={["value"]}
-                  colors={["primary"]}
-                  valueFormatter={(value) => `${value}/100`}
-                  className="h-[300px]"
-                />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Resume Section Scores</CardTitle>
-                <CardDescription>Comparison of different resume sections</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <BarChart
-                  data={[
-                    { name: "Summary", value: 70 },
-                    { name: "Experience", value: 85 },
-                    { name: "Skills", value: 75 },
-                    { name: "Education", value: 90 },
-                    { name: "Projects", value: 80 },
-                  ]}
-                  index="name"
-                  categories={["value"]}
-                  colors={["primary"]}
-                  valueFormatter={(value) => `${value}/100`}
-                  className="h-[300px]"
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {renderContent()}
       </DashboardShell>
     </div>
-  )
+  );
 }

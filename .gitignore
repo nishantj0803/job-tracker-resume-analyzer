@@ -1,86 +1,99 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-
-next-env.d.ts
-
-# Next.js / Node.js specific
+# Node.js / Next.js
 node_modules/
 .next/
+dist/
+out/
+build/
+coverage/
+*.log
+.env
+.env.local
+.env.*.local
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-*.env.local
-*.env.*.local
-.DS_Store
-Thumbs.db
+next-env.d.ts
 
-# Python specific (assuming your Python code is in a subdirectory like 'python-resume-analyzer')
-python-resume-analyzer/venv/
-python-resume-analyzer/__pycache__/
-python-resume-analyzer/*.pyc
-python-resume-analyzer/*.pyo
-python-resume-analyzer/*.pyd
-python-resume-analyzer/.Python
-python-resume-analyzer/build/
-python-resume-analyzer/develop-eggs/
-python-resume-analyzer/dist/
-python-resume-analyzer/downloads/
-python-resume-analyzer/eggs/
-python-resume-analyzer/.eggs/
-python-resume-analyzer/lib/
-python-resume-analyzer/lib64/
-python-resume-analyzer/parts/
-python-resume-analyzer/sdist/
-python-resume-analyzer/var/
-python-resume-analyzer/wheels/
-python-resume-analyzer/share/python-wheels/
-python-resume-analyzer/*.egg-info/
-python-resume-analyzer/.installed.cfg
-python-resume-analyzer/*.egg
-python-resume-analyzer/MANIFEST
-python-resume-analyzer/.env # If you have a .env file specifically for Python
-python-resume-analyzer/instance/ # Common for Flask instance configs
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.sqlite3
+*.db
 
-# General IDE/Editor specific
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+.env/ # If you use this name for virtual envs specifically
+# If your Python environment folder in python-resume-analyzer has a specific name, add it:
+# e.g., python-resume-analyzer/my_python_env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE / Editor specific
 .vscode/
 .idea/
-*.swp
-*.swo
+*.sublime-project
+*.sublime-workspace
+nbproject/ # NetBeans
+*.DS_Store # macOS
+Thumbs.db # Windows
+ehthumbs.db # Windows
+*.swp # Vim
+*~ # Backup files
 
-# macOS specific (if not already covered by .DS_Store)
-.AppleDouble
-.LSOverride
-.Spotlight-V100
-.Trashes
+# Operating System files
+.DS_Store
+Thumbs.db
 ._*
 
-# Windows specific (if not already covered by Thumbs.db)
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-[Dd]esktop.ini
+# Log files
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Compiled output
+dist
+build
+out
+
+# Dependency directories
+/node_modules/
+# If your Python dependencies are installed locally in a specific folder not managed by a venv listed above
+# /python-resume-analyzer/dependencies/
+
+# Environment files - .env files should generally not be committed, use .env.example
+.env
+.env*.local
+!.env.example
+!.env.production.template
+!.env.development.template
+
+# Next.js specific
+.next/
+next-env.d.ts # Usually auto-generated and can be ignored
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.bak
+*.patch
+
+# Optional: If your Conda environment.yml is a generic export and not specific to the project,
+# you might choose to ignore it if you primarily use a requirements.txt for the Python part.
+# However, if it's curated for the project, it's often better to commit it.
+# python-resume-analyzer/environment.yml # Consider if this should be ignored or not

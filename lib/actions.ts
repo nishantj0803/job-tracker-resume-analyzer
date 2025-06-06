@@ -300,3 +300,224 @@ export async function submitJobApplication(jobId: string, applicationData: any):
     return { success: false, message: `Database error: ${e.message}` };
   }
 }
+
+export interface UserApplicationStats {
+  statusDistribution: { name: string; value: number }[];
+  applicationsPerCompany: { name: string; value: number }[];
+  applicationActivity: { name: string; value: number }[];
+  totalApplications: number;
+  interviewRate: number; // Percentage
+  offerRate: number; // Percentage
+}
+
+
+// Add this new server action to the end of your lib/actions.ts file
+export async function getUserApplicationStats(): Promise<UserApplicationStats | { error: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || !ObjectId.isValid(session.user.id)) {
+    return { error: "User not authenticated or user ID is invalid." };
+  }
+
+  try {
+    const userId = new ObjectId(session.user.id);
+    const db = await getDb();
+
+    // Fetch all applications for the user in one go
+    const userApplications = await db.collection('applications').find({ userId }).toArray();
+
+    if (userApplications.length === 0) {
+      // Return a default empty state if the user has no applications
+      return {
+        statusDistribution: [],
+        applicationsPerCompany: [],
+        applicationActivity: [],
+        totalApplications: 0,
+        interviewRate: 0,
+        offerRate: 0,
+      };
+    }
+
+    // 1. Aggregate status distribution
+    const statusCounts = userApplications.reduce((acc, app) => {
+      const status = app.status ? String(app.status).charAt(0).toUpperCase() + String(app.status).slice(1) : 'Unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+    const statusDistribution = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+
+    // 2. Aggregate applications per company using a MongoDB aggregation pipeline ($lookup)
+    const applicationsPerCompany = await db.collection('applications').aggregate([
+      { $match: { userId } },
+      { $lookup: { from: 'jobs', localField: 'jobId', foreignField: '_id', as: 'jobDetails' } },
+      { $unwind: '$jobDetails' },
+      { $group: { _id: '$jobDetails.company', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+      { $project: { name: '$_id', value: '$count', _id: 0 } }
+    ]).toArray();
+
+    // 3. Aggregate application activity over time (by month)
+    const applicationActivity = await db.collection('applications').aggregate([
+      { $match: { userId } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$appliedAt" } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+      { $project: { name: '$_id', value: '$count', _id: 0 } }
+    ]).toArray();
+
+    // 4. Calculate key metrics
+    const totalApplications = userApplications.length;
+    const interviewCount = userApplications.filter(app => ['interview', 'offer'].includes(app.status)).length;
+    const offerCount = userApplications.filter(app => app.status === 'offer').length;
+    
+    const interviewRate = totalApplications > 0 ? Math.round((interviewCount / totalApplications) * 100) : 0;
+    const offerRate = totalApplications > 0 ? Math.round((offerCount / totalApplications) * 100) : 0;
+
+    return {
+      statusDistribution,
+      applicationsPerCompany: applicationsPerCompany as { name: string; value: number }[],
+      applicationActivity: applicationActivity as { name: string; value: number }[],
+      totalApplications,
+      interviewRate,
+      offerRate,
+    };
+
+  } catch (e: any) {
+    console.error("SERVER_ACTION_ERROR: Error fetching user application stats:", e);
+    return { error: `Database error: ${e.message}` };
+  }
+}
+export interface AdminDashboardStats {
+  totalJobs: number;
+  activeJobs: number;
+  totalUsers: number;
+  totalApplications: number;
+}
+
+// Action to get stats for the admin dashboard cards
+export async function getAdminDashboardStats(): Promise<AdminDashboardStats | { error: string }> {
+  const session = await getServerSession(authOptions);
+  // @ts-ignore
+  if (!session?.user || session.user.role !== 'admin') {
+    return { error: "Admin privileges required." };
+  }
+
+  try {
+    const db = await getDb();
+    
+    // Perform all counts in parallel for efficiency
+    const [totalJobs, activeJobs, totalUsers, totalApplications] = await Promise.all([
+      db.collection('jobs').countDocuments(),
+      db.collection('jobs').countDocuments({ status: 'active' }),
+      db.collection('users_auth').countDocuments(),
+      db.collection('applications').countDocuments()
+    ]);
+
+    return { totalJobs, activeJobs, totalUsers, totalApplications };
+
+  } catch (e: any) {
+    console.error("SERVER_ACTION_ERROR: Error fetching admin dashboard stats:", e);
+    return { error: `Database error: ${e.message}` };
+  }
+}
+
+
+// Define the shape of the user object we want to return (without sensitive info)
+export interface SafeUser {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: string;
+    emailVerified: string | null; // Keep as string for serializability
+}
+
+// Action to get a list of all users for the admin user table
+export async function getUsers(): Promise<SafeUser[] | { error: string }> {
+    const session = await getServerSession(authOptions);
+    // @ts-ignore
+    if (!session?.user || session.user.role !== 'admin') {
+        return { error: "Admin privileges required." };
+    }
+
+    try {
+        const db = await getDb();
+        const users = await db.collection('users_auth').find({}, {
+            // Explicitly exclude the password field for security
+            projection: { password: 0 }
+        }).toArray();
+
+        // Serialize the user documents to be client-safe
+        return users.map(user => ({
+            id: user._id.toString(),
+            name: user.name || null,
+            email: user.email || null,
+            role: user.role,
+            emailVerified: user.emailVerified ? (user.emailVerified instanceof Date ? user.emailVerified.toISOString() : String(user.emailVerified)) : null,
+        }));
+
+    } catch (e: any) {
+        console.error("SERVER_ACTION_ERROR: Error fetching users:", e);
+        return { error: `Database error: ${e.message}` };
+    }
+}
+export interface UserDashboardData {
+  stats: {
+    totalApplications: number;
+    interviewing: number;
+    offers: number;
+  };
+  recentApplications: (Job & { applicationStatus?: string; appliedDate: string })[];
+}
+
+export async function getUserDashboardData(): Promise<UserDashboardData | { error: string }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id || !ObjectId.isValid(session.user.id)) {
+    return { error: "User not authenticated or user ID is invalid." };
+  }
+
+  try {
+    const userId = new ObjectId(session.user.id);
+    const db = await getDb();
+
+    // Use Promise.all to fetch stats and recent applications concurrently
+    const [allUserApplications, recentApplicationsRaw] = await Promise.all([
+      db.collection('applications').find({ userId }).toArray(),
+      db.collection('applications').aggregate([
+        { $match: { userId } },
+        { $sort: { appliedAt: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: { // Join with the 'jobs' collection to get job details
+            from: 'jobs',
+            localField: 'jobId',
+            foreignField: '_id',
+            as: 'jobDetails'
+          }
+        },
+        { $unwind: '$jobDetails' } // Deconstruct the jobDetails array
+      ]).toArray()
+    ]);
+
+    const stats = {
+      totalApplications: allUserApplications.length,
+      interviewing: allUserApplications.filter(app => app.status === 'interview').length,
+      offers: allUserApplications.filter(app => app.status === 'offer').length,
+    };
+
+    const recentApplications = recentApplicationsRaw.map(app => {
+      const serializedJob = mongoDocToSerializableJob(app.jobDetails);
+      if (!serializedJob) return null;
+
+      return {
+        ...serializedJob,
+        applicationStatus: app.status,
+        appliedDate: app.appliedAt instanceof Date ? app.appliedAt.toISOString() : String(app.appliedAt),
+      };
+    }).filter(app => app !== null) as (Job & { applicationStatus: string; appliedDate: string })[];
+
+    return { stats, recentApplications };
+
+  } catch (e: any) {
+    console.error("SERVER_ACTION_ERROR: Error fetching user dashboard data:", e);
+    return { error: `Database error: ${e.message}` };
+  }
+}

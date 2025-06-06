@@ -1,19 +1,19 @@
-import type React from "react"
+// File: components/dashboard-shell.tsx
+import * as React from "react"
 import { cn } from "@/lib/utils"
 
-interface DashboardShellProps {
-  children: React.ReactNode
-  className?: string
-}
+interface DashboardShellProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-export function DashboardShell({ children, className }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  className,
+  ...props
+}: DashboardShellProps) {
   return (
-    <div className="flex-1">
-      <div className="container flex-1 items-start">
-        <main className={cn("flex w-full flex-col overflow-hidden", className)}>
-          <div className="flex-1 space-y-4 p-8 pt-6">{children}</div>
-        </main>
-      </div>
+    // FIX: Changed from "grid items-start gap-8" to "flex flex-col gap-8"
+    // This makes the shell a flexible vertical container for its children.
+    <div className={cn("flex flex-col gap-8", className)} {...props}>
+      {children}
     </div>
   )
 }
