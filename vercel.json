@@ -12,7 +12,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/:path*",
+      "source": "/api/resume/:path*",
       "destination": "/python-resume-analyzer/app.py"
     }
   ]
