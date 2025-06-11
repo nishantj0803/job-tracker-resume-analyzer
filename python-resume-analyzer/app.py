@@ -2,14 +2,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-from resume_analyzer import SimpleResumeAnalyzer
+from resume_analyzer import extract_text_from_pdf, analyze_resume_text
 
 app = Flask(__name__)
 # Configure CORS to allow requests from any domain (you can restrict this later)
 CORS(app, resources={r"/*": {"origins": "*"}})
-
-# Initialize the resume analyzer
-resume_analyzer = SimpleResumeAnalyzer()
 
 @app.route('/analyze', methods=['POST'])
 def analyze_resume_route():
@@ -27,21 +24,18 @@ def analyze_resume_route():
         return jsonify({"error": "No selected file"}), 400
     
     try:
-        extracted_text = resume_analyzer.extract_text_from_pdf(file.stream)
+        extracted_text = extract_text_from_pdf(file.stream)
         if not extracted_text.strip():
              return jsonify({"error": "Could not extract text from the PDF. It may be image-based."}), 400
 
-        analysis_result = resume_analyzer.analyze_resume_text(extracted_text)
+        analysis_result = analyze_resume_text(extracted_text)
         return jsonify(analysis_result), 200
             
-        except Exception as e:
-            app.logger.error(f"PYTHON_FLASK_ERROR: Error processing resume '{file.filename}': {e}", exc_info=True)
-            if "PdfReadError" in str(type(e).__name__) or "EOF marker not found" in str(e) :
-                 return jsonify({"error": "Failed to read PDF (Flask backend). It might be corrupted, password-protected, or not a valid PDF."}), 400
-            return jsonify({"error": f"An unexpected error occurred during analysis in Flask: {str(e)}"}), 500
-            
-    app.logger.error("PYTHON_FLASK_ERROR: Unknown error occurred with file processing in Flask.")
-    return jsonify({"error": "An unknown error occurred while processing the file in Flask."}), 500
+    except Exception as e:
+        app.logger.error(f"PYTHON_FLASK_ERROR: Error processing resume '{file.filename}': {e}", exc_info=True)
+        if "PdfReadError" in str(type(e).__name__) or "EOF marker not found" in str(e) :
+             return jsonify({"error": "Failed to read PDF (Flask backend). It might be corrupted, password-protected, or not a valid PDF."}), 400
+        return jsonify({"error": f"An unexpected error occurred during analysis in Flask: {str(e)}"}), 500
 
 # Add a health check endpoint
 @app.route('/health', methods=['GET'])
