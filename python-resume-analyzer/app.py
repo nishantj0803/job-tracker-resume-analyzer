@@ -3,33 +3,30 @@
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import resume_analyzer # Your analysis logic
 import os
+from resume_analyzer import SimpleResumeAnalyzer
 
 app = Flask(__name__)
-CORS(app) 
+# Configure CORS to allow requests from any domain (you can restrict this later)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-@app.route('/analyze_resume', methods=['POST'])
+# Initialize the resume analyzer
+resume_analyzer = SimpleResumeAnalyzer()
+
+@app.route('/analyze', methods=['POST'])
 def analyze_resume_route():
     # Log all received headers
-    app.logger.info(f"PYTHON_FLASK_LOG: --- New /analyze_resume request ---")
-    app.logger.info(f"PYTHON_FLASK_LOG: Received request.method: {request.method}")
-    app.logger.info(f"PYTHON_FLASK_LOG: Received request.content_type: {request.content_type}")
-    app.logger.info(f"PYTHON_FLASK_LOG: Received request.content_length: {request.content_length}")
-    app.logger.info(f"PYTHON_FLASK_LOG: Received request.mimetype: {request.mimetype}")
-    app.logger.info(f"PYTHON_FLASK_LOG: Full request.headers:\n{request.headers}") # This is the most important one
-
-    if 'resume' not in request.files:
-        app.logger.error("PYTHON_FLASK_ERROR: No 'resume' file part in request.files.")
-        app.logger.info(f"PYTHON_FLASK_LOG: request.files content: {request.files}")
-        app.logger.info(f"PYTHON_FLASK_LOG: request.form content (if any): {request.form}")
-        return jsonify({"error": "No resume file part in the request (Flask backend)."}), 400
+    app.logger.info("PYTHON_FLASK_LOG: Headers received: %s", dict(request.headers))
     
-    file = request.files['resume']
+    if 'file' not in request.files:
+        app.logger.warning("PYTHON_FLASK_WARNING: No file part in request")
+        return jsonify({"error": "No file part in request"}), 400
+        
+    file = request.files['file']
     
     if file.filename == '':
-        app.logger.error("PYTHON_FLASK_ERROR: No file selected (empty filename in request.files['resume']).")
-        return jsonify({"error": "No file selected (Flask backend)."}), 400
+        app.logger.warning("PYTHON_FLASK_WARNING: No selected file")
+        return jsonify({"error": "No selected file"}), 400
     
     if file:
         try:
@@ -54,5 +51,12 @@ def analyze_resume_route():
     app.logger.error("PYTHON_FLASK_ERROR: Unknown error occurred with file processing in Flask.")
     return jsonify({"error": "An unknown error occurred while processing the file in Flask."}), 500
 
+# Add a health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    # Use environment variable for port if available (for PythonAnywhere)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
