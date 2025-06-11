@@ -1,6 +1,4 @@
 # File: python-resume-analyzer/app.py
-# Description: Flask server to expose the resume analysis API. (With Request Header Logging)
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -28,19 +26,13 @@ def analyze_resume_route():
         app.logger.warning("PYTHON_FLASK_WARNING: No selected file")
         return jsonify({"error": "No selected file"}), 400
     
-    if file:
-        try:
-            app.logger.info(f"PYTHON_FLASK_LOG: Processing file: {file.filename}, original mimetype from Flask: {file.mimetype}")
-            
-            extracted_text = resume_analyzer.extract_text_from_pdf(file.stream)
-            
-            if not extracted_text.strip():
-                 app.logger.warning(f"PYTHON_FLASK_WARNING: Could not extract text from PDF: {file.filename}")
-                 return jsonify({"error": "Could not extract text from the PDF (Flask backend). The PDF might be image-based, password-protected, or corrupted. Please provide a text-based PDF."}), 400
+    try:
+        extracted_text = resume_analyzer.extract_text_from_pdf(file.stream)
+        if not extracted_text.strip():
+             return jsonify({"error": "Could not extract text from the PDF. It may be image-based."}), 400
 
-            analysis_result = resume_analyzer.analyze_resume_text(extracted_text)
-            app.logger.info(f"PYTHON_FLASK_LOG: Analysis successful for {file.filename}")
-            return jsonify(analysis_result), 200
+        analysis_result = resume_analyzer.analyze_resume_text(extracted_text)
+        return jsonify(analysis_result), 200
             
         except Exception as e:
             app.logger.error(f"PYTHON_FLASK_ERROR: Error processing resume '{file.filename}': {e}", exc_info=True)
