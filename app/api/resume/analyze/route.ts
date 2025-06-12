@@ -4,15 +4,8 @@ import { type NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   console.log("NEXT_API_LOG: /api/resume/analyze POST request received.");
   
-  // Construct the correct URL for the Python backend
-  // In production on Vercel, the backend is at the same domain.
-  // We use Vercel's system environment variable `VERCEL_URL` for this.
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
-    : 'http://localhost:3000';
-  
-  // The specific endpoint for resume analysis in our Python app
-  const pythonEndpoint = `${baseUrl}/api/analyze_resume`;
+  // Use the environment variable for the Python backend
+  const pythonEndpoint = process.env.PYTHON_BACKEND_URL || "http://localhost:5001/analyze";
 
   try {
     const clientFormData = await request.formData();
@@ -23,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const pythonNativeFormData = new FormData(); 
-    pythonNativeFormData.append("resume", file);
+    pythonNativeFormData.append("file", file); // Use "file" if that's what your backend expects
 
     console.log(`NEXT_API_LOG: Forwarding file to Python backend at: ${pythonEndpoint}`);
     
