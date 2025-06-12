@@ -36,7 +36,7 @@ export default function HomePage() {
                 <div className="relative w-full max-w-[500px] aspect-video rounded-xl bg-muted p-2">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <img
-                      src="/logo.png" 
+                      src="/Logo.png" 
                       alt="Dashboard preview"
                       className="rounded-lg object-cover"
                       width={600}
