@@ -174,6 +174,6 @@ Distributed under the MIT License. See `LICENSE` file for more information (you'
 
 ---
 
-Contact: Your Name - [@yourtwitter](https://twitter.com/yourtwitter) - your.email@example.com
-
+Contact: Nishant Jain - 
+nishantj0803@gmail.com 
 Project Link: [https://github.com/nishantj0803/job-tracker-resume-analyzer](https://github.com/nishantj0803/job-tracker-resume-analyzer)
