@@ -45,12 +45,16 @@ class Logger {
 
   private serializeError(error: unknown): Record<string, unknown> {
     if (error instanceof Error) {
-      return {
+      const serialized: Record<string, unknown> = {
         name: error.name,
         message: error.message,
         stack: error.stack,
-        ...(error.cause && { cause: this.serializeError(error.cause) }),
       };
+      // Check for cause property (ES2022+)
+      if ("cause" in error && error.cause) {
+        serialized.cause = this.serializeError(error.cause);
+      }
+      return serialized;
     }
 
     if (typeof error === "object" && error !== null) {
@@ -130,12 +134,21 @@ export function serializeErrorForResponse(error: unknown): {
   details?: unknown;
 } {
   if (error instanceof Error) {
-    return {
+    const result: {
+      message: string;
+      name?: string;
+      stack?: string;
+      cause?: unknown;
+    } = {
       message: error.message,
       name: error.name,
       stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      ...(error.cause && { cause: serializeErrorForResponse(error.cause) }),
     };
+    // Check for cause property (ES2022+)
+    if ("cause" in error && error.cause) {
+      result.cause = serializeErrorForResponse(error.cause);
+    }
+    return result;
   }
 
   if (typeof error === "object" && error !== null) {
