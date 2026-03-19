@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Loader2, XCircle, Info } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { logger, LogCategory } from "@/lib/logger"
 
 interface KeywordAnalysisResult {
   matching: string[]
@@ -42,25 +43,28 @@ export function KeywordMatcher() {
       if (storedResult) {
         const parsedResult: StoredResumeAnalysis = JSON.parse(storedResult);
         if (parsedResult.error) {
-          console.warn("KeywordMatcher: Loaded resume analysis has an error:", parsedResult.error);
+          logger.warn(LogCategory.CLIENT, "Loaded resume analysis has an error", { error: parsedResult.error });
           setResumeError(`The previously analyzed resume had an error: ${parsedResult.error}. Please re-upload and analyze.`);
           setResumeTextForMatcher(null);
         } else if (parsedResult.raw_text_preview && parsedResult.raw_text_preview.trim() !== "") {
           setResumeTextForMatcher(parsedResult.raw_text_preview);
-          console.log("KeywordMatcher: Successfully loaded resume text preview from localStorage.");
+          logger.info(LogCategory.CLIENT, "Successfully loaded resume text preview from localStorage");
         } else {
-          console.warn("KeywordMatcher: No 'raw_text_preview' found or it's empty in stored resume analysis.");
+          logger.warn(LogCategory.CLIENT, "No raw_text_preview found or it's empty in stored resume analysis");
           setResumeError("No resume text found from the last analysis. Please upload and analyze your resume first.");
           setResumeTextForMatcher(null);
         }
       } else {
-        console.log("KeywordMatcher: No resumeAnalysisResult found in localStorage.");
+        logger.info(LogCategory.CLIENT, "No resumeAnalysisResult found in localStorage");
         setResumeError("No resume has been analyzed yet. Please upload and analyze your resume on the 'Upload & Analyze' tab first.");
         setResumeTextForMatcher(null);
       }
     } catch (e) {
-      console.error("KeywordMatcher: Failed to parse stored resume analysis result:", e);
-      setResumeError("Could not load previously analyzed resume data. It might be corrupted.");
+      logger.error(LogCategory.CLIENT, "Failed to parse stored resume analysis result", {
+        error: e,
+        storageDataPreview: localStorage.getItem("resumeAnalysisResult")?.substring(0, 100)
+      });
+      setResumeError("Could not load previously analyzed resume data. It might be corrupted. Please re-analyze your resume.");
       setResumeTextForMatcher(null);
     }
     setIsLoadingResumeText(false);
@@ -95,7 +99,10 @@ export function KeywordMatcher() {
     setAnalysisResults(null) // Clear previous results
 
     try {
-      console.log("KeywordMatcher: Sending to /api/resume/compare-keywords with JD length:", jobDescription.length, "and Resume text length:", resumeTextForMatcher.length);
+      logger.info(LogCategory.CLIENT, "Sending keyword comparison request", {
+        jobDescriptionLength: jobDescription.length,
+        resumeTextLength: resumeTextForMatcher.length
+      });
       const response = await fetch("/api/resume/compare-keywords", {
         method: "POST",
         headers: {
@@ -110,10 +117,10 @@ export function KeywordMatcher() {
       const resultData = await response.json();
 
       if (!response.ok) {
-        console.error("KeywordMatcher: API error response:", resultData);
+        logger.error(LogCategory.CLIENT, "Keyword comparison API error", { resultData, status: response.status });
         throw new Error(resultData.error || `Request failed with status ${response.status}`);
       }
-      
+
       if (resultData.error) {
          toast({
           title: "Keyword Comparison Error",
@@ -126,7 +133,7 @@ export function KeywordMatcher() {
       }
 
     } catch (error) {
-      console.error("KeywordMatcher: Error comparing keywords:", error);
+      logger.error(LogCategory.CLIENT, "Error comparing keywords", { error });
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to compare keywords. Please try again.",

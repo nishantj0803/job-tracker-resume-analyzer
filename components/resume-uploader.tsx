@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileText, Loader2, Upload, X } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation";
+import { logger, LogCategory } from "@/lib/logger";
 
 export function ResumeUploader() {
   const [file, setFile] = useState<File | null>(null);
@@ -103,8 +104,13 @@ export function ResumeUploader() {
       // setIsProcessing(false); // Moved after response processing
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Analysis request failed. The server returned an unexpected response." }));
-        console.error("Analysis API error response:", errorData);
+        let errorData: { error?: string } = { error: "Analysis request failed. The server returned an unexpected response." };
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          logger.error(LogCategory.CLIENT, "Failed to parse error response", { error: parseError, status: response.status });
+        }
+        logger.error(LogCategory.CLIENT, "Analysis API error response", { errorData, status: response.status });
         toast({
           title: "Analysis Failed",
           description: errorData.error || `Server error: ${response.statusText || response.status}`,
@@ -143,7 +149,7 @@ export function ResumeUploader() {
 
     } catch (error) {
       setIsProcessing(false);
-      console.error("Client-side error analyzing resume:", error);
+      logger.error(LogCategory.CLIENT, "Client-side error analyzing resume", { error });
       let message = "An unexpected error occurred. Please check your connection and try again.";
       if (error instanceof Error) {
         message = error.message;
