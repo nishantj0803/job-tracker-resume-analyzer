@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { BarChart3 } from "lucide-react"
+import { Briefcase } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { UserNav } from "@/components/user-nav"
 import { useAuth } from "@/components/auth-provider"
@@ -47,8 +47,10 @@ export function MainNav() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
           <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            <span>JobTrackr</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-primary-foreground">
+              <Briefcase className="h-4 w-4" strokeWidth={2.5} />
+            </span>
+            <span className="font-display text-lg font-bold tracking-tight">JobTrackr</span>
           </Link>
         </div>
 

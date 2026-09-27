@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { BarChart3, Loader2, ShieldCheck } from "lucide-react" // Added ShieldCheck
+import { Briefcase, Loader2, ShieldCheck } from "lucide-react" // Added ShieldCheck
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -39,8 +39,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center">
           <div className="flex items-center gap-2 font-semibold">
-            <BarChart3 className="h-6 w-6 text-primary" />
-            <span className="text-2xl">JobTrackr</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary text-primary-foreground">
+              <Briefcase className="h-5 w-5" strokeWidth={2.5} />
+            </span>
+            <span className="font-display text-2xl font-bold tracking-tight">JobTrackr</span>
           </div>
         </div>
         <Card>

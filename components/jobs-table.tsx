@@ -78,7 +78,7 @@ export function JobsTable() {
             <TableHead>Position</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Location</TableHead>
-            <TableHead>Status</TableHead> 
+            <TableHead>Status</TableHead>
             <TableHead>Posted On</TableHead> {/* Changed from Deadline for user view */}
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
