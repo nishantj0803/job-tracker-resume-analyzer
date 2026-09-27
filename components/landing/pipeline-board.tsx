@@ -1,13 +1,12 @@
 "use client";
 
 /*
- * Shape rule for this page (locked): sheets 14px, stamps and chips 6px,
- * buttons pill. One accent (stamp red #D43D2A) across every section.
+ * Pipeline tag wall. Reskin of the stage selector in the reference's
+ * "culture wall" module: outline tags on black, active tag in accent.
  */
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { Stamp } from "@phosphor-icons/react";
 
 interface Stage {
   id: string;
@@ -54,8 +53,8 @@ export function PipelineBoard() {
   const active = STAGES.find((s) => s.id === activeId) ?? STAGES[0];
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[#E2E2D9] bg-[#FCFCFA] shadow-[0_24px_60px_-32px_rgba(60,55,45,0.35)]">
-      <div className="grid grid-cols-2 lg:grid-cols-4">
+    <div>
+      <div className="flex flex-wrap gap-3" role="group" aria-label="Pipeline stages">
         {STAGES.map((stage) => {
           const isActive = stage.id === activeId;
           return (
@@ -64,40 +63,22 @@ export function PipelineBoard() {
               type="button"
               onClick={() => setActiveId(stage.id)}
               aria-pressed={isActive}
-              className={`relative px-5 py-5 text-left transition-colors duration-200 focus-visible:outline-none ${
-                isActive ? "bg-[#191921] text-[#F3F3EF]" : "hover:bg-[#EFEFE8]"
-              } ${stage.id !== "offer" ? "max-lg:odd:border-r lg:border-r" : ""} ${
-                stage.id === "applied" || stage.id === "screening"
-                  ? "max-lg:border-b"
-                  : ""
-              } border-[#E2E2D9]`}
+              className={`rounded-[10px] border-2 px-5 py-3 text-[15px] font-semibold transition-all duration-150 focus-visible:outline-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                isActive
+                  ? "border-[#FFB800] bg-[#FFB800] text-[#141414] shadow-[4px_4px_0_rgba(243,243,239,0.9)]"
+                  : "border-[#F3F3EF]/40 bg-transparent text-[#F3F3EF] hover:-translate-x-[1px] hover:-translate-y-[1px] hover:border-[#F3F3EF] hover:shadow-[3px_3px_0_rgba(243,243,239,0.35)]"
+              }`}
             >
-              <span
-                className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${
-                  isActive
-                    ? "border-[#F3F3EF]/40 text-[#F3F3EF]"
-                    : "border-[#191921]/30 text-[#191921]"
-                }`}
-              >
-                {stage.name}
-              </span>
-              <span className="font-display tnum mt-2 block text-4xl font-semibold">
-                {stage.count}
-              </span>
-              {isActive && !reduce && (
-                <motion.span
-                  layoutId="stage-ink"
-                  className="absolute inset-x-0 bottom-0 h-[3px] bg-[#D43D2A]"
-                />
-              )}
-              {isActive && reduce && (
-                <span className="absolute inset-x-0 bottom-0 h-[3px] bg-[#D43D2A]" />
-              )}
+              {stage.name}{" "}
+              <span className="tnum font-display">{stage.count}</span>
             </button>
           );
         })}
+        <span className="inline-flex items-center rounded-[10px] border-2 border-dashed border-[#F3F3EF]/25 px-5 py-3 text-[15px] text-[#B9B9C2]">
+          Rejected, filed separately
+        </span>
       </div>
-      <div className="border-t border-[#E2E2D9] px-5 py-4">
+      <div className="mt-6 min-h-[76px] border-t-2 border-[#F3F3EF]/15 pt-5">
         <AnimatePresence mode="wait">
           <motion.div
             key={active.id}
@@ -106,11 +87,10 @@ export function PipelineBoard() {
             exit={reduce ? undefined : { opacity: 0, y: -6 }}
             transition={{ duration: 0.22 }}
           >
-            <p className="flex items-center gap-2 text-[15px] font-medium text-[#191921]">
-              <Stamp className="h-4 w-4 text-[#D43D2A]" weight="bold" />
+            <p className="text-[17px] font-medium text-[#F3F3EF]">
               {active.record}
             </p>
-            <p className="tnum mt-1 pl-6 text-[13px] text-[#5C5C66]">
+            <p className="tnum mt-1 text-[15px] text-[#B9B9C2]">
               Sample entry: {active.sample}
             </p>
           </motion.div>

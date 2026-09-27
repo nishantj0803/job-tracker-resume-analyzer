@@ -38,12 +38,12 @@ html {
 }
 
 ::selection {
-  background: #d43d2a;
-  color: #f3f3ef;
+  background: #ffb800;
+  color: #141414;
 }
 
 :focus-visible {
-  outline: 2px solid #d43d2a;
+  outline: 2px solid currentColor;
   outline-offset: 3px;
   border-radius: 4px;
 }

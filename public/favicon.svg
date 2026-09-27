@@ -4,5 +4,5 @@
   <rect x="24" y="19" width="16" height="3" rx="1.5" fill="#191921"/>
   <rect x="24" y="25" width="16" height="3" rx="1.5" fill="#191921" opacity="0.45"/>
   <rect x="24" y="31" width="10" height="3" rx="1.5" fill="#191921" opacity="0.45"/>
-  <circle cx="43" cy="41" r="8" fill="none" stroke="#D43D2A" stroke-width="3"/>
+  <circle cx="43" cy="41" r="8" fill="none" stroke="#FFB800" stroke-width="3"/>
 </svg>
