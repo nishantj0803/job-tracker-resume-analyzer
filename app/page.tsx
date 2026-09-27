@@ -1,56 +1,36 @@
 "use client";
 
+/*
+ * Landing visual system (locked for this page):
+ * paper #F3F3EF, sheet #FCFCFA, ink #191921, one accent #D43D2A.
+ * Radii: sheets 14px, stamps and chips 6px, buttons pill.
+ * Display: Bricolage Grotesque. Body: Inter. Figures: tabular-nums.
+ */
+
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { motion, animate, useInView, useReducedMotion } from "motion/react";
 import {
-  motion,
-  animate,
-  useInView,
-  useReducedMotion,
-} from "motion/react";
-import {
-  ArrowRight,
-  BarChart3,
   Briefcase,
-  CheckCircle2,
-  FileSearch,
-  FileText,
-  GitBranch,
-  XCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+  ClipboardText,
+  FolderOpen,
+  ChartBar,
+} from "@phosphor-icons/react";
 import { useAuth } from "@/components/auth-provider";
-
-/* ---------------------------------- bits --------------------------------- */
-
-function Reveal({
-  children,
-  delay = 0,
-  className,
-}: {
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 28 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-64px" }}
-      transition={{ duration: 0.65, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
-    >
-      {children}
-    </motion.div>
-  );
-}
+import { PipelineBoard } from "@/components/landing/pipeline-board";
+import { MatchSlip } from "@/components/landing/match-slip";
 
 function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
+  const reduce = useReducedMotion();
   useEffect(() => {
     if (!inView || !ref.current) return;
+    if (reduce) {
+      ref.current.textContent = `${to}${suffix}`;
+      return;
+    }
     const controls = animate(0, to, {
       duration: 1.4,
       ease: [0.16, 1, 0.3, 1],
@@ -59,722 +39,442 @@ function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
       },
     });
     return () => controls.stop();
-  }, [inView, to, suffix]);
+  }, [inView, to, suffix, reduce]);
   return (
-    <span ref={ref} className="tabular-nums">
+    <span ref={ref} className="tnum">
       0{suffix}
     </span>
   );
 }
 
-function Float({
-  children,
-  className,
-  duration = 5,
-  offset = 10,
-  delay = 0,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  duration?: number;
-  offset?: number;
-  delay?: number;
-}) {
-  const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
-  return (
-    <motion.div
-      className={className}
-      animate={{ y: [0, -offset, 0] }}
-      transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/* ------------------------------- mock data -------------------------------- */
-
-const FUNNEL = [
-  { stage: "Applied", count: 24, width: 100, conv: null as string | null },
-  { stage: "Screening", count: 9, width: 38, conv: "38% from Applied" },
-  { stage: "Interview", count: 4, width: 17, conv: "44% from Screening" },
-  { stage: "Offer", count: 1, width: 8, conv: "25% from Interview" },
-];
-
-const MATCHED = ["Python", "REST", "SQL", "React"];
-const MISSING = ["Kubernetes", "AWS Lambda"];
-const BREAKDOWN = [
-  { label: "Skills match", value: 80 },
-  { label: "Experience overlap", value: 67 },
-  { label: "Seniority fit", value: 75 },
-];
-
-/* --------------------------------- sections ------------------------------- */
-
-function LandingNav() {
+function SiteNav() {
   const { user } = useAuth();
   return (
-    <header className="relative z-20 mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-      <Link href="/" className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400 text-zinc-950">
-          <Briefcase className="h-4 w-4" strokeWidth={2.5} />
-        </span>
-        <span className="text-[15px] font-semibold tracking-tight text-white">
-          JobTrackr
-        </span>
-      </Link>
-      <nav className="hidden items-center gap-7 text-sm text-zinc-400 md:flex">
-        <a href="#pipeline" className="transition-colors hover:text-white">
-          Pipeline
-        </a>
-        <a href="#match" className="transition-colors hover:text-white">
-          Match score
-        </a>
-        <a href="#analytics" className="transition-colors hover:text-white">
-          Analytics
-        </a>
-        <a href="#how" className="transition-colors hover:text-white">
-          How it works
-        </a>
-      </nav>
-      <div className="flex items-center gap-2">
-        {user ? (
-          <Button
-            asChild
-            size="sm"
-            className="bg-emerald-400 font-medium text-zinc-950 hover:bg-emerald-300"
-          >
-            <Link href="/dashboard">
-              Open dashboard <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+    <header className="sticky top-0 z-40 border-b border-[#E2E2D9] bg-[#F3F3EF]/90 backdrop-blur">
+      <nav
+        aria-label="Primary"
+        className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-5"
+      >
+        <Link href="/" className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#191921] text-[#F3F3EF]">
+            <Briefcase className="h-4 w-4" weight="bold" />
+          </span>
+          <span className="font-display text-[17px] font-semibold text-[#191921]">
+            JobTrackr
+          </span>
+        </Link>
+        <div className="hidden items-center gap-7 text-[15px] text-[#5C5C66] md:flex">
+          <a href="#pipeline" className="transition-colors hover:text-[#191921]">
+            Pipeline
+          </a>
+          <a href="#match" className="transition-colors hover:text-[#191921]">
+            Match report
+          </a>
+          <a href="#analytics" className="transition-colors hover:text-[#191921]">
+            Analytics
+          </a>
+          <a href="#how" className="transition-colors hover:text-[#191921]">
+            How it works
+          </a>
+        </div>
+        <div className="flex items-center gap-5">
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-[#191921] px-5 py-2.5 text-sm font-medium text-[#F3F3EF] transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0"
+            >
+              Open dashboard
             </Link>
-          </Button>
-        ) : (
-          <>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="text-zinc-300 hover:bg-white/10 hover:text-white"
-            >
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className="bg-emerald-400 font-medium text-zinc-950 hover:bg-emerald-300"
-            >
-              <Link href="/register">Start free</Link>
-            </Button>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden text-[15px] text-[#5C5C66] underline-offset-4 transition-colors hover:text-[#191921] hover:underline sm:block"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-full bg-[#191921] px-5 py-2.5 text-sm font-medium text-[#F3F3EF] transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0"
+              >
+                Start tracking
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
     </header>
   );
 }
 
-function ProductMock() {
+function Ticket({
+  role,
+  stamp,
+  stampInk = false,
+  rows,
+  foot,
+  className = "",
+}: {
+  role: string;
+  stamp: string;
+  stampInk?: boolean;
+  rows: [string, string][];
+  foot?: string;
+  className?: string;
+}) {
   return (
-    <div className="relative">
-      {/* glow */}
-      <div
-        aria-hidden
-        className="absolute -inset-x-8 -top-10 bottom-0 rounded-[32px] bg-emerald-400/10 blur-3xl"
-      />
-      <motion.div
-        initial={{ opacity: 0, y: 48, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.9, delay: 0.35, ease: [0.21, 0.47, 0.32, 0.98] }}
-        className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 shadow-[0_40px_120px_-20px_rgba(0,0,0,0.9)] backdrop-blur"
-      >
-        {/* window chrome */}
-        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-          <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
-          <span className="ml-3 hidden rounded-md bg-white/5 px-3 py-1 font-mono text-[11px] text-zinc-500 sm:block">
-            jobtrackr.app/dashboard
-          </span>
-          <span className="ml-auto flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            4 interviews active
-          </span>
-        </div>
-
-        <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-5">
-          {/* pipeline panel */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 md:col-span-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                Pipeline
-              </p>
-              <p className="font-mono text-[11px] text-zinc-500">
-                last 90 days
-              </p>
-            </div>
-            <div className="mt-4 space-y-3.5">
-              {FUNNEL.map((f, i) => (
-                <div key={f.stage}>
-                  <div className="flex items-baseline justify-between text-[13px]">
-                    <span className="font-medium text-zinc-200">
-                      {f.stage}
-                      <span className="ml-2 font-mono text-zinc-500">
-                        {f.count}
-                      </span>
-                    </span>
-                    {f.conv && (
-                      <span className="font-mono text-[11px] text-emerald-300/80">
-                        {f.conv}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
-                    <motion.div
-                      className={`h-full rounded-full ${
-                        f.stage === "Offer"
-                          ? "bg-emerald-400"
-                          : "bg-zinc-400"
-                      }`}
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      style={{ width: `${f.width}%`, transformOrigin: "left" }}
-                      transition={{
-                        duration: 1,
-                        delay: 0.7 + i * 0.15,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-[12px] text-zinc-500">
-              <GitBranch className="h-3.5 w-3.5" />
-              Rejected tracked separately — 11, with reasons logged
-            </div>
+    <div
+      className={`rounded-[14px] border border-[#E2E2D9] bg-[#FCFCFA] p-5 shadow-[0_24px_60px_-32px_rgba(60,55,45,0.35)] ${className}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-display text-lg font-semibold leading-snug text-[#191921]">
+          {role}
+        </p>
+        <span
+          className={`inline-block shrink-0 -rotate-3 rounded-md border-2 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] ${
+            stampInk
+              ? "border-[#191921] text-[#191921]"
+              : "border-[#D43D2A] text-[#D43D2A]"
+          }`}
+        >
+          {stamp}
+        </span>
+      </div>
+      <dl className="mt-4 divide-y divide-[#EDEDE4] border-t border-[#E2E2D9] text-sm">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex items-baseline justify-between gap-4 py-2">
+            <dt className="text-[#5C5C66]">{k}</dt>
+            <dd className="tnum text-right font-medium text-[#191921]">{v}</dd>
           </div>
-
-          {/* match panel */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Match report
-            </p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-4xl font-semibold tracking-tight text-white">
-                78%
-              </span>
-              <span className="text-[12px] text-zinc-500">match</span>
-            </div>
-            <p className="mt-1 font-mono text-[11px] text-zinc-500">
-              4/6 core requirements
-            </p>
-            <div className="mt-3 space-y-2">
-              {BREAKDOWN.map((b, i) => (
-                <div key={b.label}>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-zinc-400">{b.label}</span>
-                    <span className="font-mono text-zinc-300">{b.value}%</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
-                    <motion.div
-                      className="h-full rounded-full bg-emerald-400/80"
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      style={{
-                        width: `${b.value}%`,
-                        transformOrigin: "left",
-                      }}
-                      transition={{
-                        duration: 0.9,
-                        delay: 1 + i * 0.12,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {MATCHED.map((m) => (
-                <span
-                  key={m}
-                  className="inline-flex items-center gap-1 rounded-md border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[11px] text-emerald-300"
-                >
-                  <CheckCircle2 className="h-3 w-3" /> {m}
-                </span>
-              ))}
-              {MISSING.map((m) => (
-                <span
-                  key={m}
-                  className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[11px] text-zinc-400"
-                >
-                  <XCircle className="h-3 w-3" /> {m}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* floating chips */}
-      <Float
-        className="absolute -left-3 top-16 hidden rounded-xl border border-white/10 bg-zinc-900/95 px-3.5 py-2.5 shadow-xl backdrop-blur md:block lg:-left-10"
-        duration={5.5}
-        offset={9}
-      >
-        <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-          Response rate
+        ))}
+      </dl>
+      {foot && (
+        <p className="mt-3 border-t border-dashed border-[#D8D8CE] pt-3 text-sm text-[#5C5C66]">
+          {foot}
         </p>
-        <p className="text-xl font-semibold text-white">
-          <CountUp to={50} suffix="%" />
-        </p>
-      </Float>
-      <Float
-        className="absolute -right-3 top-40 hidden rounded-xl border border-white/10 bg-zinc-900/95 px-3.5 py-2.5 shadow-xl backdrop-blur md:block lg:-right-10"
-        duration={6.5}
-        offset={11}
-        delay={0.8}
-      >
-        <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-          Missing skill found
-        </p>
-        <p className="text-sm font-medium text-amber-300">+ Kubernetes</p>
-      </Float>
+      )}
     </div>
   );
 }
 
-/* ---------------------------------- page ---------------------------------- */
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+};
 
-const MARQUEE = [
-  "Applied",
-  "Screening",
-  "Interview",
-  "Offer",
-  "Keyword gaps",
-  "ATS feedback",
-  "Response rate",
-  "Tailored resume",
-];
-
-const FEATURES = [
-  {
-    icon: GitBranch,
-    title: "A pipeline, not a spreadsheet",
-    body: "Every application sits in a stage — applied, screening, interview, offer, rejected. You always know what needs a nudge and what went quiet.",
+const rise = {
+  hidden: { opacity: 0, y: 26 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const },
   },
-  {
-    icon: FileSearch,
-    title: "Match scores you can argue with",
-    body: "Paste a job description and get matched skills, missing skills, and experience overlap — with the evidence, not just a number.",
-  },
-  {
-    icon: FileText,
-    title: "Resume grading that stings a little",
-    body: "Content quality, ATS compatibility, section-by-section feedback. Specific enough to act on in one sitting.",
-  },
-  {
-    icon: BarChart3,
-    title: "Analytics that answer one question",
-    body: "Where do I drop off? Conversion between every stage, response rate, and per-company history — so you fix the bottleneck.",
-  },
-];
-
-const STEPS = [
-  {
-    n: "01",
-    title: "Log applications as you send them",
-    body: "Company, role, stage, deadline. Thirty seconds each — the data your future self needs for follow-ups and patterns.",
-  },
-  {
-    n: "02",
-    title: "Grade the resume once",
-    body: "Upload it, get section feedback and ATS notes. Fix the big issues before you tailor per role.",
-  },
-  {
-    n: "03",
-    title: "Tailor per job with the match report",
-    body: "Compare against each description, close the keyword gaps honestly, and send the version that fits.",
-  },
-];
+};
 
 export default function HomePage() {
-  return (
-    <div className="-m-4 bg-zinc-950 text-zinc-100 antialiased md:-m-8">
-      {/* backdrop texture */}
-      <div className="relative overflow-hidden">
-        <div aria-hidden className="bg-grid-dark absolute inset-0" />
-        <div
-          aria-hidden
-          className="absolute left-1/2 top-[-320px] h-[480px] w-[820px] -translate-x-1/2 rounded-full bg-emerald-400/[0.07] blur-[120px]"
-        />
-        <div className="relative">
-          <LandingNav />
+  const reduce = useReducedMotion();
 
-          {/* hero */}
-          <section className="mx-auto max-w-6xl px-5 pb-16 pt-14 text-center md:pt-20">
+  return (
+    <div className="-m-4 bg-[#F3F3EF] text-[#191921] antialiased md:-m-8">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[70] focus:rounded-full focus:bg-[#191921] focus:px-5 focus:py-2.5 focus:text-sm focus:text-[#F3F3EF]"
+      >
+        Skip to content
+      </a>
+      <div aria-hidden className="grain-overlay" />
+      <SiteNav />
+
+      <main id="main">
+        {/* Hero: asymmetric split. Copy left, dossier right. */}
+        <section className="mx-auto max-w-6xl px-5 pb-20 pt-14 md:pb-28 md:pt-20">
+          <motion.div
+            variants={container}
+            initial={reduce ? false : "hidden"}
+            animate="show"
+            className="grid items-center gap-12 lg:grid-cols-12"
+          >
+            <div className="lg:col-span-6">
+              <motion.h1
+                variants={rise}
+                className="font-display max-w-[12ch] text-balance text-5xl font-semibold leading-[1.02] md:text-6xl"
+              >
+                Every application in writing.
+              </motion.h1>
+              <motion.p
+                variants={rise}
+                className="mt-5 max-w-[42ch] text-pretty text-lg leading-relaxed text-[#5C5C66]"
+              >
+                JobTrackr files each application from applied to offer, grades
+                your resume, and names the missing keywords.
+              </motion.p>
+              <motion.div variants={rise} className="mt-8 flex items-center gap-6">
+                <Link
+                  href="/register"
+                  className="rounded-full bg-[#191921] px-7 py-3.5 text-[15px] font-medium text-[#F3F3EF] transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0"
+                >
+                  Start tracking
+                </Link>
+                <Link
+                  href="/login"
+                  className="text-[15px] text-[#5C5C66] underline-offset-4 transition-colors hover:text-[#191921] hover:underline"
+                >
+                  Log in
+                </Link>
+              </motion.div>
+            </div>
+
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55 }}
+              variants={rise}
+              className="relative lg:col-span-6"
+              aria-label="Sample application file with two tracked roles"
             >
+              <div className="relative mx-auto max-w-md lg:ml-auto">
+                <Ticket
+                  role="Backend engineer"
+                  stamp="Applied"
+                  rows={[
+                    ["Sent", "Mar 2"],
+                    ["Source", "Referral"],
+                  ]}
+                  className="absolute inset-x-8 top-10 rotate-[5deg] opacity-90"
+                />
+                <Ticket
+                  role="Senior frontend engineer"
+                  stamp="Interview"
+                  stampInk
+                  rows={[
+                    ["Applied", "Mar 4"],
+                    ["Screening", "Mar 11"],
+                    ["Interview", "Mar 19"],
+                  ]}
+                  foot="Next: system design round, prep notes attached."
+                  className="relative -rotate-[2deg]"
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* Pipeline: ledger strip with selectable stages. */}
+        <section id="pipeline" className="scroll-mt-24 border-t border-[#E2E2D9]">
+          <div className="mx-auto max-w-6xl px-5 py-16 md:py-24">
+            <h2 className="font-display max-w-[20ch] text-balance text-3xl font-semibold leading-tight md:text-[2.75rem] md:leading-[1.1]">
+              Four stages. Zero guesswork.
+            </h2>
+            <p className="mt-3 max-w-[52ch] text-[17px] leading-relaxed text-[#5C5C66]">
+              Every application lives in exactly one stage. Select a stage to
+              see what gets recorded there.
+            </p>
+            <div className="mt-8">
+              <PipelineBoard />
+            </div>
+          </div>
+        </section>
+
+        {/* Match report: photo plus a real slip preview. */}
+        <section
+          id="match"
+          className="scroll-mt-24 border-t border-[#E2E2D9] bg-[#EFEFE8]"
+        >
+          <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:py-24 lg:grid-cols-2">
+            <div>
+              <Image
+                src="https://picsum.photos/seed/jobtrackr-paper/1200/900"
+                alt="Hands writing in a notebook beside coffee and a tablet"
+                width={1200}
+                height={900}
+                loading="lazy"
+                className="w-full rounded-[14px] border border-[#E2E2D9] object-cover grayscale"
+              />
+              <p className="mt-3 text-sm text-[#5C5C66]">
+                An afternoon of tailoring resumes.
+              </p>
+            </div>
+            <div>
+              <h2 className="font-display text-balance text-3xl font-semibold leading-tight md:text-[2.75rem] md:leading-[1.1]">
+                A score that shows its working.
+              </h2>
+              <p className="mt-3 max-w-[48ch] text-[17px] leading-relaxed text-[#5C5C66]">
+                No black box. Each match lists what counted, what is missing,
+                and how much of the role your experience covers.
+              </p>
+              <div className="mt-7">
+                <MatchSlip />
+              </div>
               <Link
                 href="/resume"
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 py-1.5 pl-2 pr-3.5 text-[13px] text-zinc-300 backdrop-blur transition-colors hover:border-emerald-400/30 hover:text-white"
+                className="mt-6 inline-block rounded-full border border-[#191921] px-6 py-3 text-[15px] font-medium transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0"
               >
-                <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[11px] font-semibold text-zinc-950">
-                  New
-                </span>
-                Explainable match scores — why it&apos;s 78%
-                <ArrowRight className="h-3.5 w-3.5" />
+                See a match report
               </Link>
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.08 }}
-              className="mx-auto mt-7 max-w-3xl text-balance text-5xl font-semibold leading-[1.05] tracking-[-0.03em] text-white md:text-7xl"
-            >
-              Turn more applications into{" "}
-              <span className="text-emerald-300">interviews.</span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.16 }}
-              className="mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-zinc-400 md:text-lg"
-            >
-              JobTrackr tracks every application from applied to offer, grades
-              your resume against each job description, and shows exactly
-              which keywords you&apos;re missing.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.24 }}
-              className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"
-            >
-              <Button
-                asChild
-                size="lg"
-                className="h-12 bg-emerald-400 px-7 font-medium text-zinc-950 hover:bg-emerald-300"
-              >
-                <Link href="/register">
-                  Start tracking — it&apos;s free
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-12 border-white/15 bg-transparent px-7 text-zinc-200 hover:bg-white/5 hover:text-white"
-              >
-                <Link href="/resume">See a match report</Link>
-              </Button>
-            </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.7, delay: 0.34 }}
-              className="mt-5 font-mono text-[12px] text-zinc-600"
-            >
-              Free to start · No credit card · Your data stays yours
-            </motion.p>
-
-            <div className="mx-auto mt-12 max-w-4xl md:mt-16">
-              <ProductMock />
             </div>
-          </section>
-        </div>
-      </div>
-
-      {/* marquee */}
-      <div className="border-y border-white/10 bg-zinc-950 py-4">
-        <div className="marquee-mask overflow-hidden">
-          <div className="animate-marquee flex w-max items-center gap-8 pr-8">
-            {[...MARQUEE, ...MARQUEE].map((m, i) => (
-              <span
-                key={i}
-                className="flex items-center gap-8 whitespace-nowrap font-mono text-[13px] uppercase tracking-[0.18em] text-zinc-600"
-              >
-                {m}
-                <span className="text-emerald-400/60">→</span>
-              </span>
-            ))}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* features */}
-      <section id="pipeline" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 md:py-28">
-        <Reveal>
-          <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-emerald-300/80">
-            What it does
-          </p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-white md:text-5xl">
-            Everything between &ldquo;applied&rdquo; and &ldquo;offer&rdquo;,
-            handled.
-          </h2>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 0.07}>
-              <div className="group h-full rounded-2xl border border-white/10 bg-white/[0.02] p-6 transition-colors duration-300 hover:border-emerald-400/25 hover:bg-white/[0.04]">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-emerald-300 transition-colors group-hover:border-emerald-400/30">
-                  <f.icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-lg font-medium tracking-tight text-white">
-                  {f.title}
-                </h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-zinc-400">
-                  {f.body}
+        {/* Analytics: hairline-divided figures, no cards. */}
+        <section
+          id="analytics"
+          className="scroll-mt-24 border-t border-[#E2E2D9]"
+        >
+          <div className="mx-auto max-w-6xl px-5 py-16 md:py-24">
+            <h2 className="font-display max-w-[20ch] text-balance text-3xl font-semibold leading-tight md:text-[2.75rem] md:leading-[1.1]">
+              See where the search stalls.
+            </h2>
+            <div className="mt-10 grid grid-cols-1 divide-y divide-[#E2E2D9] border-y border-[#E2E2D9] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {[
+                { to: 38, label: "of applications reach screening" },
+                { to: 17, label: "of applications reach interview" },
+                { to: 4, label: "of applications reach offer" },
+              ].map((stat) => (
+                <div key={stat.label} className="px-2 py-8 sm:px-8">
+                  <p className="font-display text-5xl font-semibold md:text-6xl">
+                    <CountUp to={stat.to} suffix="%" />
+                  </p>
+                  <p className="mt-2 text-[15px] text-[#5C5C66]">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="tnum mt-4 text-sm text-[#5C5C66]">
+              Sample pipeline of 24 applications. Yours updates as you log.
+            </p>
+          </div>
+        </section>
+
+        {/* How it works: sticky head, verb-led rows. */}
+        <section id="how" className="scroll-mt-24 border-t border-[#E2E2D9] bg-[#EFEFE8]">
+          <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:py-24 lg:grid-cols-12">
+            <div className="lg:col-span-5">
+              <div className="lg:sticky lg:top-28">
+                <h2 className="font-display text-balance text-3xl font-semibold leading-tight md:text-[2.75rem] md:leading-[1.1]">
+                  Ten minutes a week.
+                </h2>
+                <p className="mt-3 max-w-[40ch] text-[17px] leading-relaxed text-[#5C5C66]">
+                  Three habits keep the whole search legible, from first
+                  application to signed offer.
+                </p>
+                <Image
+                  src="https://picsum.photos/seed/carbide/800/600"
+                  alt="Desk covered with notebooks, letterpress blocks and a camera"
+                  width={800}
+                  height={600}
+                  loading="lazy"
+                  className="mt-8 hidden w-full rounded-[14px] border border-[#E2E2D9] object-cover grayscale lg:block"
+                />
+                <p className="mt-3 hidden text-sm text-[#5C5C66] lg:block">
+                  The tools of the search.
                 </p>
               </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* how it works */}
-      <section
-        id="how"
-        className="scroll-mt-20 border-y border-white/10 bg-zinc-900/40"
-      >
-        <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
-          <Reveal>
-            <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-emerald-300/80">
-              How it works
-            </p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-white md:text-5xl">
-              Three habits. Ten minutes a week.
-            </h2>
-          </Reveal>
-          <div className="mt-10 grid gap-8 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <Reveal key={s.n} delay={i * 0.1}>
-                <div className="relative">
-                  <p className="font-mono text-sm text-emerald-300/70">{s.n}</p>
-                  <h3 className="mt-2 text-lg font-medium tracking-tight text-white">
-                    {s.title}
-                  </h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-zinc-400">
-                    {s.body}
-                  </p>
-                  {i < STEPS.length - 1 && (
-                    <div
-                      aria-hidden
-                      className="absolute left-full top-8 hidden h-px w-8 bg-gradient-to-r from-white/20 to-transparent md:block"
-                    />
-                  )}
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* match deep-dive */}
-      <section id="match" className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 md:py-28">
-        <div className="grid items-center gap-10 md:grid-cols-2">
-          <Reveal>
-            <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-emerald-300/80">
-              Match score, explained
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              Never stare at &ldquo;78%&rdquo; wondering why.
-            </h2>
-            <p className="mt-4 leading-relaxed text-zinc-400">
-              Every score ships with its working: which requirements you hit,
-              which you missed, and how much of the job&apos;s core experience
-              your resume actually covers. Close the gaps that matter instead
-              of keyword-stuffing blindly.
-            </p>
-            <ul className="mt-6 space-y-3 text-[15px] text-zinc-300">
-              {[
-                "Matched vs. missing skills, side by side",
-                "Experience overlap like “4/6 core requirements”",
-                "Skills / experience / seniority breakdown",
-              ].map((t) => (
-                <li key={t} className="flex items-start gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-            <Button
-              asChild
-              className="mt-7 bg-emerald-400 font-medium text-zinc-950 hover:bg-emerald-300"
-            >
-              <Link href="/resume">
-                Try the keyword matcher <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </Reveal>
-          <Reveal delay={0.12}>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-              <div className="flex items-baseline justify-between">
-                <p className="text-sm text-zinc-400">Senior Frontend · Acme</p>
-                <Badge
-                  variant="outline"
-                  className="border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                >
-                  78% match
-                </Badge>
-              </div>
-              <div className="mt-5 space-y-4">
-                {BREAKDOWN.map((b) => (
-                  <div key={b.label}>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-zinc-300">{b.label}</span>
-                      <span className="font-mono text-zinc-400">{b.value}%</span>
-                    </div>
-                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
-                      <motion.div
-                        className="h-full rounded-full bg-emerald-400/80"
-                        initial={{ scaleX: 0 }}
-                        whileInView={{ scaleX: 1 }}
-                        viewport={{ once: true }}
-                        style={{
-                          width: `${b.value}%`,
-                          transformOrigin: "left",
-                        }}
-                        transition={{
-                          duration: 0.9,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                      />
+            </div>
+            <div className="lg:col-span-7">
+              <div className="divide-y divide-[#D8D8CE] border-y border-[#D8D8CE]">
+                {[
+                  {
+                    verb: "Log",
+                    icon: FolderOpen,
+                    body: "File each application in seconds. Company, role, stage, deadline. The record your future self thanks you for.",
+                    link: "/jobs",
+                    linkLabel: "Open jobs",
+                  },
+                  {
+                    verb: "Grade",
+                    icon: ClipboardText,
+                    body: "Upload the resume once. Get section notes and an ATS read before you tailor a single line.",
+                    link: "/resume",
+                    linkLabel: "Grade a resume",
+                  },
+                  {
+                    verb: "Tailor",
+                    icon: ChartBar,
+                    body: "Paste the description. See matched and missing skills with the evidence, then send the version that fits.",
+                    link: "/resume",
+                    linkLabel: "Match a job",
+                  },
+                ].map((step) => (
+                  <div key={step.verb} className="grid gap-2 py-8 sm:grid-cols-12 sm:gap-6">
+                    <p className="font-display text-3xl font-semibold sm:col-span-4">
+                      {step.verb}
+                    </p>
+                    <div className="sm:col-span-8">
+                      <p className="flex items-start gap-2.5 text-[16px] leading-relaxed text-[#3A3A44]">
+                        <step.icon
+                          className="mt-1 h-5 w-5 shrink-0 text-[#D43D2A]"
+                          weight="bold"
+                        />
+                        {step.body}
+                      </p>
+                      <Link
+                        href={step.link}
+                        className="mt-3 inline-block text-[15px] font-medium text-[#191921] underline decoration-[#D43D2A] decoration-2 underline-offset-4"
+                      >
+                        {step.linkLabel}
+                      </Link>
                     </div>
                   </div>
                 ))}
               </div>
-              <p className="mt-5 border-t border-white/10 pt-4 text-sm leading-relaxed text-zinc-500">
-                &ldquo;Strong alignment on frontend fundamentals — closing the
-                Kubernetes and AWS Lambda gap would lift this past 85%.&rdquo;
+            </div>
+          </div>
+        </section>
+
+        {/* Closing panel: ink sheet, one stamp, one action. */}
+        <section className="border-t border-[#E2E2D9]">
+          <div className="mx-auto max-w-6xl px-5 py-16 md:py-24">
+            <div className="relative overflow-hidden rounded-[14px] bg-[#191921] px-6 py-14 text-center md:py-20">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute right-6 top-6 rotate-6 rounded-md border-[3px] border-[#D43D2A] px-3 py-1 text-sm font-bold uppercase tracking-[0.2em] text-[#D43D2A] md:right-12 md:top-10 md:text-base"
+              >
+                Offer
+              </span>
+              <h2 className="font-display mx-auto max-w-[22ch] text-balance text-3xl font-semibold leading-tight text-[#F3F3EF] md:text-5xl">
+                Stop losing track of the hunt.
+              </h2>
+              <p className="mx-auto mt-4 max-w-[44ch] text-[17px] leading-relaxed text-[#B9B9C2]">
+                Log tonight&apos;s applications. Wake up knowing exactly where
+                each one stands.
               </p>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* analytics strip */}
-      <section
-        id="analytics"
-        className="scroll-mt-20 border-y border-white/10 bg-zinc-900/40"
-      >
-        <div className="mx-auto max-w-6xl px-5 py-20 md:py-24">
-          <Reveal className="text-center">
-            <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-emerald-300/80">
-              Analytics
-            </p>
-            <h2 className="mx-auto mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-white md:text-4xl">
-              Know exactly where your search stalls.
-            </h2>
-          </Reveal>
-          <div className="mx-auto mt-10 grid max-w-3xl grid-cols-3 gap-4 text-center">
-            {[
-              { to: 50, suffix: "%", label: "response rate" },
-              { to: 33, suffix: "%", label: "to interview" },
-              { to: 17, suffix: "%", label: "to offer" },
-            ].map((s) => (
-              <Reveal key={s.label}>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-2 py-6">
-                  <p className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
-                    <CountUp to={s.to} suffix={s.suffix} />
-                  </p>
-                  <p className="mt-1 text-[13px] text-zinc-500">{s.label}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal className="mt-8 text-center">
-            <Button
-              asChild
-              variant="outline"
-              className="border-white/15 bg-transparent text-zinc-200 hover:bg-white/5 hover:text-white"
-            >
-              <Link href="/analytics">
-                Open the analytics view <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* final CTA */}
-      <section className="mx-auto max-w-6xl px-5 py-20 md:py-28">
-        <Reveal>
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent px-6 py-14 text-center md:py-20">
-            <div
-              aria-hidden
-              className="absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent"
-            />
-            <h2 className="mx-auto max-w-2xl text-balance text-3xl font-semibold tracking-tight text-white md:text-5xl">
-              Your next interview is already in your pipeline.
-            </h2>
-            <p className="mx-auto mt-4 max-w-md text-zinc-400">
-              Log this week&apos;s applications tonight. See your first match
-              report in minutes.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                className="h-12 bg-emerald-400 px-7 font-medium text-zinc-950 hover:bg-emerald-300"
-              >
-                <Link href="/register">
-                  Get started free <ArrowRight className="ml-2 h-4 w-4" />
+              <div className="mt-8 flex items-center justify-center gap-6">
+                <Link
+                  href="/register"
+                  className="rounded-full bg-[#F3F3EF] px-7 py-3.5 text-[15px] font-medium text-[#191921] transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0"
+                >
+                  Start tracking
                 </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="ghost"
-                className="h-12 text-zinc-300 hover:bg-white/10 hover:text-white"
-              >
-                <Link href="/login">Log in</Link>
-              </Button>
+                <Link
+                  href="/login"
+                  className="text-[15px] text-[#B9B9C2] underline-offset-4 transition-colors hover:text-[#F3F3EF] hover:underline"
+                >
+                  Log in
+                </Link>
+              </div>
             </div>
           </div>
-        </Reveal>
-      </section>
+        </section>
+      </main>
 
-      {/* footer */}
-      <footer className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-5 py-8 md:flex-row">
+      <footer className="border-t border-[#E2E2D9]">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-400 text-zinc-950">
-              <Briefcase className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#191921] text-[#F3F3EF]">
+              <Briefcase className="h-3.5 w-3.5" weight="bold" />
             </span>
-            <span className="text-sm font-medium text-zinc-300">JobTrackr</span>
-            <span className="font-mono text-[11px] text-zinc-600">
-              © 2026
+            <span className="font-display text-[15px] font-semibold">
+              JobTrackr
             </span>
+            <span className="tnum text-xs text-[#5C5C66]">© 2026</span>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-zinc-500">
-            <Link href="/jobs" className="transition-colors hover:text-zinc-200">
+          <nav aria-label="Footer" className="flex items-center gap-6 text-[15px] text-[#5C5C66]">
+            <Link href="/jobs" className="transition-colors hover:text-[#191921]">
               Jobs
             </Link>
-            <Link
-              href="/resume"
-              className="transition-colors hover:text-zinc-200"
-            >
+            <Link href="/resume" className="transition-colors hover:text-[#191921]">
               Resume
             </Link>
-            <Link
-              href="/analytics"
-              className="transition-colors hover:text-zinc-200"
-            >
+            <Link href="/analytics" className="transition-colors hover:text-[#191921]">
               Analytics
             </Link>
-            <Link
-              href="/dashboard"
-              className="transition-colors hover:text-zinc-200"
-            >
+            <Link href="/dashboard" className="transition-colors hover:text-[#191921]">
               Dashboard
             </Link>
           </nav>
