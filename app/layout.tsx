@@ -10,8 +10,9 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "JobTrackr",
-  description: "Track your job applications and analyze your resume.",
+  title: "JobTrackr — Turn applications into interviews",
+  description:
+    "Track every job application from applied to offer, grade your resume against each job description, and see exactly which keywords you're missing.",
 };
 
 export default function RootLayout({
