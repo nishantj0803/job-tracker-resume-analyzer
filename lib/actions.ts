@@ -3,9 +3,45 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { getDb } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { z } from "zod";
+import {
+  normalizeApplicationStatus,
+  type ApplicationStatus,
+} from "@/lib/application-status";
+import { computePipelineMetrics } from "@/lib/match";
+
+type SessionUser = {
+  id?: string;
+  role?: string;
+};
+
+async function requireUser(): Promise<SessionUser> {
+  const session = await getServerSession(authOptions);
+  const user = session?.user as SessionUser | undefined;
+  if (!user?.id) throw new Error("User not authenticated.");
+  return user;
+}
+
+async function requireAdmin(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "admin") throw new Error("Admin privileges required.");
+  return user;
+}
+
+const jobSchema = z.object({
+  position: z.string().trim().min(1, "Position is required").max(200),
+  company: z.string().trim().min(1, "Company is required").max(200),
+  description: z.string().max(20000).nullish(),
+  location: z.string().max(200).nullish(),
+  status: z.string().max(50).nullish(),
+  url: z.string().max(2000).nullish(),
+  deadline: z.string().max(50).nullish(),
+  salary: z.string().max(200).nullish(),
+  notes: z.string().max(20000).nullish(),
+});
 
 export interface Job {
   _id?: ObjectId; // Keep for internal DB use if necessary
@@ -29,62 +65,70 @@ export interface Job {
 }
 
 // Updated helper to ensure all fields are serializable
-function mongoDocToSerializableJob(doc: any): Job | null {
-  if (!doc) return null;
-  const { _id, created_at, updated_at, application_deadline, ...rest } = doc;
+function mongoDocToSerializableJob(doc: Record<string, unknown> | null | undefined): Job | null {
+  if (!doc || !doc._id) return null;
+  const { _id, created_at, updated_at, application_deadline, ...rest } = doc as Record<string, unknown> & {
+    _id: ObjectId;
+    created_at: unknown;
+    updated_at: unknown;
+    application_deadline: unknown;
+  };
+  const toISO = (v: unknown): string | null => {
+    if (v === null || v === undefined) return null;
+    if (v instanceof Date) return v.toISOString();
+    if (typeof v === "string") return v;
+    return String(v);
+  };
   const serializableJob: Job = {
-    ...rest,
+    ...(rest as Omit<Job, "id" | "created_at" | "updated_at" | "application_deadline">),
     id: _id.toString(),
-    created_at: created_at instanceof Date ? created_at.toISOString() : String(created_at),
-    updated_at: updated_at ? (updated_at instanceof Date ? updated_at.toISOString() : String(updated_at)) : null,
-    application_deadline: application_deadline ? (application_deadline instanceof Date ? application_deadline.toISOString() : String(application_deadline)) : null,
-    // Ensure any other potentially non-serializable fields (e.g., other nested ObjectIds or Dates if any) are converted here
+    created_at: toISO(created_at) ?? new Date().toISOString(),
+    updated_at: toISO(updated_at),
+    application_deadline: toISO(application_deadline),
   };
   return serializableJob;
-  return {
-    ...rest,
-    id: _id.toString(),
-    // _id: _id.toString(), // If you want to pass _id as string too
-    created_at: created_at instanceof Date ? created_at.toISOString() : (typeof created_at === 'string' ? created_at : new Date(created_at).toISOString()),
-    updated_at: updated_at ? (updated_at instanceof Date ? updated_at.toISOString() : (typeof updated_at === 'string' ? updated_at : new Date(updated_at).toISOString())) : null,
-    application_deadline: application_deadline ? (application_deadline instanceof Date ? application_deadline.toISOString() : (typeof application_deadline === 'string' ? application_deadline : new Date(application_deadline).toISOString())) : null,
-  } as Job; // Cast to Job, ensure all fields align
 }
 
 export async function addJob(formData: FormData): Promise<{ job: Job | null; error: string | null }> {
-  console.log("SERVER_ACTION_LOG: addJob action initiated (MongoDB/NextAuth).");
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    console.warn("SERVER_ACTION_WARN: No authenticated user found in addJob.");
-    return { job: null, error: "User not authenticated." };
+  let admin: SessionUser;
+  try {
+    admin = await requireAdmin();
+  } catch (e) {
+    return { job: null, error: e instanceof Error ? e.message : "Not authorized." };
   }
 
-  // @ts-ignore
-  if (session.user.role !== 'admin') {
-    // @ts-ignore
-    console.warn(`SERVER_ACTION_WARN: User ${session.user.id} is not an admin. Role: ${session.user.role}. Denying addJob.`);
-    return { job: null, error: "User does not have admin privileges to add jobs." };
-  }
-  console.log("SERVER_ACTION_LOG: User confirmed as admin. Proceeding to add job (MongoDB).");
+  const parsed = jobSchema.safeParse({
+    position: formData.get("position"),
+    company: formData.get("company"),
+    description: formData.get("description"),
+    location: formData.get("location"),
+    status: formData.get("status"),
+    url: formData.get("url"),
+    deadline: formData.get("deadline"),
+    salary: formData.get("salary"),
+    notes: formData.get("notes"),
+  });
 
-  const deadlineString = formData.get("deadline") as string | null;
+  if (!parsed.success) {
+    return { job: null, error: parsed.error.errors[0]?.message ?? "Invalid job data." };
+  }
+
+  const deadlineString = parsed.data.deadline || null;
 
   // Data to be inserted into MongoDB (uses Date objects)
   const jobDataToInsert = {
-    position: formData.get("position") as string,
-    company: formData.get("company") as string,
-    description: (formData.get("description") as string | null) || null,
-    location: (formData.get("location") as string | null) || null,
-    status: (formData.get("status") as Job['status'] | null) || 'draft',
-    job_url: (formData.get("url") as string | null) || null,
+    position: parsed.data.position,
+    company: parsed.data.company,
+    description: parsed.data.description || null,
+    location: parsed.data.location || null,
+    status: parsed.data.status || "draft",
+    job_url: parsed.data.url || null,
     application_deadline: deadlineString ? new Date(deadlineString) : null,
-    salary_range: (formData.get("salary") as string | null) || null,
-    notes_private: (formData.get("notes") as string | null) || null,
+    salary_range: parsed.data.salary || null,
+    notes_private: parsed.data.notes || null,
     created_at: new Date(),
     updated_at: new Date(),
-    // @ts-ignore
-    posted_by_user_id: session.user.id,
+    posted_by_user_id: admin.id,
   };
 
   if (!jobDataToInsert.position || !jobDataToInsert.company) {
@@ -166,24 +210,47 @@ export async function getJobById(jobId: string): Promise<Job | null> {
 
 // For updateJob, ensure the returned 'result' from findOneAndUpdate is also passed through mongoDocToSerializableJob
 export async function updateJob(jobId: string, formData: FormData): Promise<{ job: Job | null; error: string | null }> {
-  // ... (auth checks and formData processing as before) ...
-  // Ensure updateData results in Date objects for date fields being stored in DB
+  try {
+    await requireAdmin();
+  } catch (e) {
+    return { job: null, error: e instanceof Error ? e.message : "Not authorized." };
+  }
 
-  const deadlineString = formData.get("deadline") as string | null;
-  const updatePayload: Partial<Omit<Job, '_id' | 'id' | 'created_at' | 'posted_by_user_id' | 'application_deadline'> & { application_deadline?: Date | null }> = {
-    position: formData.get("position") as string,
-    company: formData.get("company") as string,
-    description: formData.get("description") as string || undefined,
-    location: formData.get("location") as string || undefined,
-    status: (formData.get("status") as Job['status']) || undefined,
-    job_url: formData.get("url") as string || undefined,
+  if (!ObjectId.isValid(jobId)) {
+    return { job: null, error: "Invalid job ID format." };
+  }
+
+  const parsed = jobSchema.safeParse({
+    position: formData.get("position"),
+    company: formData.get("company"),
+    description: formData.get("description"),
+    location: formData.get("location"),
+    status: formData.get("status"),
+    url: formData.get("url"),
+    deadline: formData.get("deadline"),
+    salary: formData.get("salary"),
+    notes: formData.get("notes"),
+  });
+
+  if (!parsed.success) {
+    return { job: null, error: parsed.error.errors[0]?.message ?? "Invalid job data." };
+  }
+
+  const deadlineString = parsed.data.deadline || null;
+  const updatePayload: Record<string, unknown> = {
+    position: parsed.data.position,
+    company: parsed.data.company,
+    description: parsed.data.description || undefined,
+    location: parsed.data.location || undefined,
+    status: parsed.data.status || undefined,
+    job_url: parsed.data.url || undefined,
     application_deadline: deadlineString ? new Date(deadlineString) : undefined,
-    salary_range: formData.get("salary") as string || undefined,
-    notes_private: formData.get("notes") as string || undefined,
+    salary_range: parsed.data.salary || undefined,
+    notes_private: parsed.data.notes || undefined,
     updated_at: new Date(),
   };
 
-  Object.keys(updatePayload).forEach(key => (updatePayload as any)[key] === undefined && delete (updatePayload as any)[key]);
+  Object.keys(updatePayload).forEach(key => updatePayload[key] === undefined && delete updatePayload[key]);
 
   if (!updatePayload.position || !updatePayload.company) {
     return { job: null, error: "Position and Company are required fields." };
@@ -196,10 +263,15 @@ export async function updateJob(jobId: string, formData: FormData): Promise<{ jo
       { $set: updatePayload },
       { returnDocument: 'after' }
     );
-    
-    if (!result) return { job: null, error: "Job not found or update failed." };
 
-    const updatedJob = mongoDocToSerializableJob(result); // Serialize before returning
+    // mongodb v5 returns ModifyResult<{value}>, v6 returns the document directly.
+    const doc =
+      result && typeof result === "object" && "value" in result
+        ? (result as { value: Record<string, unknown> | null }).value
+        : (result as Record<string, unknown> | null);
+    if (!doc) return { job: null, error: "Job not found or update failed." };
+
+    const updatedJob = mongoDocToSerializableJob(doc); // Serialize before returning
     // ... (revalidate paths and return) ...
     revalidatePath("/jobs");
     revalidatePath(`/jobs/${jobId}`);
@@ -216,89 +288,93 @@ export async function updateJob(jobId: string, formData: FormData): Promise<{ jo
 // deleteJob does not return job data, so it's likely fine as is.
 // lib/actions.ts
 export async function deleteJob(jobId: string): Promise<{ success: boolean; error: string | null }> {
-  console.log(`SERVER_ACTION_LOG: deleteJob action initiated for ID: ${jobId}`);
-  const session = await getServerSession(authOptions);
-
-  // @ts-ignore
-  if (!session?.user || session.user.role !== 'admin') {
-    // @ts-ignore
-    const userId = session?.user?.id || "Unauthenticated";
-    // @ts-ignore
-    const userRole = session?.user?.role || "N/A";
-    console.warn(`SERVER_ACTION_LOG: Auth check failed for deleteJob. User: ${userId}, Role: ${userRole}. JobId: ${jobId}`);
+  try {
+    await requireAdmin();
+  } catch {
     return { success: false, error: "Admin privileges required." };
   }
-  console.log(`SERVER_ACTION_LOG: Admin user ${session.user.id} confirmed for deleteJob.`);
 
   if (!ObjectId.isValid(jobId)) {
-    console.warn(`SERVER_ACTION_LOG: Invalid jobId for deleteJob: ${jobId}`);
     return { success: false, error: "Invalid job ID format." };
   }
 
   const jobObjectId = new ObjectId(jobId);
-  console.log(`SERVER_ACTION_LOG: Attempting to delete job with ObjectId: ${jobObjectId.toString()}`);
 
   try {
     const db = await getDb();
     const result = await db.collection('jobs').deleteOne({ _id: jobObjectId });
-    console.log(`SERVER_ACTION_LOG: MongoDB deleteOne result:`, result);
 
     if (result.deletedCount === 0) {
-      console.warn(`SERVER_ACTION_LOG: Job not found or already deleted for ID ${jobId} (ObjectId: ${jobObjectId.toString()}).`);
       return { success: false, error: "Job not found or already deleted." };
     }
 
-    console.log(`SERVER_ACTION_LOG: Job ID ${jobId} (ObjectId: ${jobObjectId.toString()}) deleted successfully from MongoDB.`);
     revalidatePath("/jobs");
     revalidatePath("/admin/dashboard");
     revalidatePath("/admin/jobs");
     return { success: true, error: null };
-  } catch (e: any) {
-    console.error(`SERVER_ACTION_ERROR: Error deleting job ID ${jobId} from MongoDB:`, e);
-    return { success: false, error: `Database error: ${e.message}` };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown database error";
+    return { success: false, error: `Database error: ${message}` };
   }
 }
 
-// submitJobApplication likely doesn't return the job object directly to the client component
-// as a prop, so it might not need this specific serialization for its return value.
-// However, be mindful if you fetch and use this application data later in client components.
-export async function submitJobApplication(jobId: string, applicationData: any): Promise<{ success: boolean; message: string }> {
-  // ... (existing logic is likely fine if not directly passing complex objects as props) ...
-  console.log(`SERVER_ACTION_LOG: submitJobApplication for job ID: ${jobId} (MongoDB/NextAuth).`);
-  const session = await getServerSession(authOptions);
+const applicationSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320),
+  coverLetter: z.string().max(20000).optional().default(""),
+  jobTitle: z.string().max(200).optional().default(""),
+});
 
-  if (!session?.user?.id) { 
+// submitJobApplication stores a per-user application row keyed by job + user.
+export async function submitJobApplication(
+  jobId: string,
+  applicationData: unknown
+): Promise<{ success: boolean; message: string }> {
+  let user: SessionUser;
+  try {
+    user = await requireUser();
+  } catch {
     return { success: false, message: "You must be logged in to apply." };
   }
   if (!ObjectId.isValid(jobId)) return { success: false, message: "Invalid job ID." };
-  // @ts-ignore 
-  if (session.user.id && !ObjectId.isValid(session.user.id)) {
-      return { success: false, message: "Invalid user ID format in session." };
+  if (user.id && !ObjectId.isValid(user.id)) {
+    return { success: false, message: "Invalid user ID format in session." };
   }
-  
+
+  const parsed = applicationSchema.safeParse(applicationData);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.errors[0]?.message ?? "Invalid application." };
+  }
+
   const newApplication = {
     jobId: new ObjectId(jobId),
-    // @ts-ignore
-    userId: new ObjectId(session.user.id),
-    applicantName: applicationData.name,
-    applicantEmail: applicationData.email,
-    coverLetter: applicationData.coverLetter,
+    userId: new ObjectId(user.id),
+    applicantName: parsed.data.name,
+    applicantEmail: parsed.data.email,
+    coverLetter: parsed.data.coverLetter,
     appliedAt: new Date(),
-    status: "applied",
+    status: "applied" satisfies ApplicationStatus,
   };
 
   try {
     const db = await getDb();
     await db.collection('applications').insertOne(newApplication);
-    
+
     revalidatePath(`/jobs/${jobId}`);
     revalidatePath('/dashboard');
 
-    return { success: true, message: `Successfully submitted application for ${applicationData.jobTitle || 'job'}.` };
-  } catch (e: any) {
-    console.error("SERVER_ACTION_ERROR: Error submitting application to MongoDB:", e);
-    return { success: false, message: `Database error: ${e.message}` };
+    return { success: true, message: `Successfully submitted application for ${parsed.data.jobTitle || 'job'}.` };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown database error";
+    return { success: false, message: `Database error: ${message}` };
   }
+}
+
+export interface FunnelStageStat {
+  stage: string;
+  count: number;
+  reachRate: number;
+  conversionFromPrevious: number | null;
 }
 
 export interface UserApplicationStats {
@@ -308,18 +384,33 @@ export interface UserApplicationStats {
   totalApplications: number;
   interviewRate: number; // Percentage
   offerRate: number; // Percentage
+  responseRate: number; // screening+interview+offer / total
+  funnel: FunnelStageStat[];
+  /** Filterable row-level data for client-side search/filter. */
+  applications: {
+    id: string;
+    company: string;
+    position: string;
+    status: ApplicationStatus;
+    appliedAt: string;
+  }[];
 }
 
 
 // Add this new server action to the end of your lib/actions.ts file
 export async function getUserApplicationStats(): Promise<UserApplicationStats | { error: string }> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !ObjectId.isValid(session.user.id)) {
+  let user: SessionUser;
+  try {
+    user = await requireUser();
+  } catch {
+    return { error: "User not authenticated or user ID is invalid." };
+  }
+  if (!user.id || !ObjectId.isValid(user.id)) {
     return { error: "User not authenticated or user ID is invalid." };
   }
 
   try {
-    const userId = new ObjectId(session.user.id);
+    const userId = new ObjectId(user.id);
     const db = await getDb();
 
     // Fetch all applications for the user in one go
@@ -334,23 +425,31 @@ export async function getUserApplicationStats(): Promise<UserApplicationStats | 
         totalApplications: 0,
         interviewRate: 0,
         offerRate: 0,
+        responseRate: 0,
+        funnel: [],
+        applications: [],
       };
     }
 
+    const normalizedStatuses = userApplications.map((a) =>
+      normalizeApplicationStatus(a.status)
+    );
+    const pipeline = computePipelineMetrics(normalizedStatuses);
+
     // 1. Aggregate status distribution
-    const statusCounts = userApplications.reduce((acc, app) => {
-      const status = app.status ? String(app.status).charAt(0).toUpperCase() + String(app.status).slice(1) : 'Unknown';
-      acc[status] = (acc[status] || 0) + 1;
+    const statusCounts = normalizedStatuses.reduce((acc, status) => {
+      const label = status.charAt(0).toUpperCase() + status.slice(1);
+      acc[label] = (acc[label] || 0) + 1;
       return acc;
     }, {} as { [key: string]: number });
-    const statusDistribution = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+    const statusDistribution = Object.entries(statusCounts).map(([name, value]) => ({ name, value: value as number }));
 
     // 2. Aggregate applications per company using a MongoDB aggregation pipeline ($lookup)
     const applicationsPerCompany = await db.collection('applications').aggregate([
       { $match: { userId } },
       { $lookup: { from: 'jobs', localField: 'jobId', foreignField: '_id', as: 'jobDetails' } },
-      { $unwind: '$jobDetails' },
-      { $group: { _id: '$jobDetails.company', count: { $sum: 1 } } },
+      { $unwind: { path: '$jobDetails', preserveNullAndEmptyArrays: true } },
+      { $group: { _id: { $ifNull: ['$jobDetails.company', 'Unknown'] }, count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 },
       { $project: { name: '$_id', value: '$count', _id: 0 } }
@@ -364,26 +463,46 @@ export async function getUserApplicationStats(): Promise<UserApplicationStats | 
       { $project: { name: '$_id', value: '$count', _id: 0 } }
     ]).toArray();
 
-    // 4. Calculate key metrics
-    const totalApplications = userApplications.length;
-    const interviewCount = userApplications.filter(app => ['interview', 'offer'].includes(app.status)).length;
-    const offerCount = userApplications.filter(app => app.status === 'offer').length;
-    
-    const interviewRate = totalApplications > 0 ? Math.round((interviewCount / totalApplications) * 100) : 0;
-    const offerRate = totalApplications > 0 ? Math.round((offerCount / totalApplications) * 100) : 0;
+    // 4. Row-level data for filtering/search (join job details, tolerate orphaned jobs)
+    const detailed = await db.collection('applications').aggregate([
+      { $match: { userId } },
+      { $lookup: { from: 'jobs', localField: 'jobId', foreignField: '_id', as: 'jobDetails' } },
+      { $unwind: { path: '$jobDetails', preserveNullAndEmptyArrays: true } },
+      { $sort: { appliedAt: -1 } },
+      { $limit: 200 },
+    ]).toArray();
+
+    const applications = detailed.map((app) => ({
+      id: String(app._id),
+      company: String(app.jobDetails?.company ?? "Unknown"),
+      position: String(app.jobDetails?.position ?? "Unknown role"),
+      status: normalizeApplicationStatus(app.status),
+      appliedAt:
+        app.appliedAt instanceof Date
+          ? app.appliedAt.toISOString()
+          : String(app.appliedAt ?? ""),
+    }));
 
     return {
       statusDistribution,
       applicationsPerCompany: applicationsPerCompany as { name: string; value: number }[],
       applicationActivity: applicationActivity as { name: string; value: number }[],
-      totalApplications,
-      interviewRate,
-      offerRate,
+      totalApplications: pipeline.total,
+      interviewRate: pipeline.interviewRate,
+      offerRate: pipeline.offerRate,
+      responseRate: pipeline.responseRate,
+      funnel: pipeline.funnel.map((f) => ({
+        stage: f.stage,
+        count: f.count,
+        reachRate: f.reachRate,
+        conversionFromPrevious: f.conversionFromPrevious,
+      })),
+      applications,
     };
 
-  } catch (e: any) {
-    console.error("SERVER_ACTION_ERROR: Error fetching user application stats:", e);
-    return { error: `Database error: ${e.message}` };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown database error";
+    return { error: `Database error: ${message}` };
   }
 }
 export interface AdminDashboardStats {
@@ -395,15 +514,15 @@ export interface AdminDashboardStats {
 
 // Action to get stats for the admin dashboard cards
 export async function getAdminDashboardStats(): Promise<AdminDashboardStats | { error: string }> {
-  const session = await getServerSession(authOptions);
-  // @ts-ignore
-  if (!session?.user || session.user.role !== 'admin') {
+  try {
+    await requireAdmin();
+  } catch {
     return { error: "Admin privileges required." };
   }
 
   try {
     const db = await getDb();
-    
+
     // Perform all counts in parallel for efficiency
     const [totalJobs, activeJobs, totalUsers, totalApplications] = await Promise.all([
       db.collection('jobs').countDocuments(),
@@ -414,9 +533,9 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats | { 
 
     return { totalJobs, activeJobs, totalUsers, totalApplications };
 
-  } catch (e: any) {
-    console.error("SERVER_ACTION_ERROR: Error fetching admin dashboard stats:", e);
-    return { error: `Database error: ${e.message}` };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown database error";
+    return { error: `Database error: ${message}` };
   }
 }
 
@@ -432,10 +551,10 @@ export interface SafeUser {
 
 // Action to get a list of all users for the admin user table
 export async function getUsers(): Promise<SafeUser[] | { error: string }> {
-    const session = await getServerSession(authOptions);
-    // @ts-ignore
-    if (!session?.user || session.user.role !== 'admin') {
-        return { error: "Admin privileges required." };
+    try {
+      await requireAdmin();
+    } catch {
+      return { error: "Admin privileges required." };
     }
 
     try {
@@ -454,9 +573,9 @@ export async function getUsers(): Promise<SafeUser[] | { error: string }> {
             emailVerified: user.emailVerified ? (user.emailVerified instanceof Date ? user.emailVerified.toISOString() : String(user.emailVerified)) : null,
         }));
 
-    } catch (e: any) {
-        console.error("SERVER_ACTION_ERROR: Error fetching users:", e);
-        return { error: `Database error: ${e.message}` };
+    } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "Unknown database error";
+        return { error: `Database error: ${message}` };
     }
 }
 export interface UserDashboardData {
@@ -469,13 +588,18 @@ export interface UserDashboardData {
 }
 
 export async function getUserDashboardData(): Promise<UserDashboardData | { error: string }> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !ObjectId.isValid(session.user.id)) {
+  let user: SessionUser;
+  try {
+    user = await requireUser();
+  } catch {
+    return { error: "User not authenticated or user ID is invalid." };
+  }
+  if (!user.id || !ObjectId.isValid(user.id)) {
     return { error: "User not authenticated or user ID is invalid." };
   }
 
   try {
-    const userId = new ObjectId(session.user.id);
+    const userId = new ObjectId(user.id);
     const db = await getDb();
 
     // Use Promise.all to fetch stats and recent applications concurrently
@@ -493,31 +617,32 @@ export async function getUserDashboardData(): Promise<UserDashboardData | { erro
             as: 'jobDetails'
           }
         },
-        { $unwind: '$jobDetails' } // Deconstruct the jobDetails array
+        { $unwind: { path: '$jobDetails', preserveNullAndEmptyArrays: true } }
       ]).toArray()
     ]);
 
     const stats = {
       totalApplications: allUserApplications.length,
-      interviewing: allUserApplications.filter(app => app.status === 'interview').length,
-      offers: allUserApplications.filter(app => app.status === 'offer').length,
+      interviewing: allUserApplications.filter(app => normalizeApplicationStatus(app.status) === 'interview').length,
+      offers: allUserApplications.filter(app => normalizeApplicationStatus(app.status) === 'offer').length,
     };
 
     const recentApplications = recentApplicationsRaw.map(app => {
+      if (!app.jobDetails) return null;
       const serializedJob = mongoDocToSerializableJob(app.jobDetails);
       if (!serializedJob) return null;
 
       return {
         ...serializedJob,
-        applicationStatus: app.status,
+        applicationStatus: normalizeApplicationStatus(app.status),
         appliedDate: app.appliedAt instanceof Date ? app.appliedAt.toISOString() : String(app.appliedAt),
       };
     }).filter(app => app !== null) as (Job & { applicationStatus: string; appliedDate: string })[];
 
     return { stats, recentApplications };
 
-  } catch (e: any) {
-    console.error("SERVER_ACTION_ERROR: Error fetching user dashboard data:", e);
-    return { error: `Database error: ${e.message}` };
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown database error";
+    return { error: `Database error: ${message}` };
   }
 }

@@ -2,47 +2,47 @@
 // Description: API route to compare keywords between a job description and resume text.
 
 import { type NextRequest, NextResponse } from "next/server";
-import { compareKeywords } from "@/lib/gemini"; // Ensure this path is correct
+import { z } from "zod";
+import { compareKeywords } from "@/lib/gemini";
+
+const bodySchema = z.object({
+  jobDescription: z.string().trim().min(20, "Job description is too short.").max(20000),
+  resumeText: z.string().trim().min(20, "Resume text is too short.").max(20000),
+});
 
 export async function POST(request: NextRequest) {
-  console.log("API_ROUTE_LOG: /api/resume/compare-keywords POST request received.");
+  let body: unknown;
   try {
-    const { jobDescription, resumeText } = await request.json();
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON payload received." },
+      { status: 400 }
+    );
+  }
 
-    if (!jobDescription || !resumeText) {
-      console.warn("API_ROUTE_WARN: Missing jobDescription or resumeText in /api/resume/compare-keywords.");
-      return NextResponse.json(
-        { error: "Job description and resume text are required." },
-        { status: 400 }
-      );
-    }
-    console.log("API_ROUTE_LOG: jobDescription (first 50 chars):", jobDescription.substring(0,50) + "...");
-    console.log("API_ROUTE_LOG: resumeText (first 50 chars):", resumeText.substring(0,50) + "...");
+  const parsed = bodySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.errors[0]?.message ?? "Invalid request body." },
+      { status: 400 }
+    );
+  }
 
+  try {
+    const result = await compareKeywords(
+      parsed.data.jobDescription,
+      parsed.data.resumeText
+    );
 
-    const result = await compareKeywords(jobDescription, resumeText);
-    
-    console.log("API_ROUTE_LOG: Result from compareKeywords Gemini function:", result);
-
-    if (result.error) {
-        console.error("API_ROUTE_ERROR: Error received from compareKeywords Gemini function:", result.error);
-        // It's good to return a 500 if the underlying service call failed,
-        // unless it's a specific user input error that Gemini identified.
-        return NextResponse.json(result, { status: 500 }); 
+    if ("error" in result && result.error) {
+      return NextResponse.json(result, { status: 500 });
     }
 
     return NextResponse.json(result);
-
   } catch (error: unknown) {
-    console.error("API_ROUTE_ERROR: TOP LEVEL CATCH in /api/resume/compare-keywords. Raw Error:", error);
-    let message = "Failed to compare keywords due to an unexpected server error.";
-     if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        message = "Invalid JSON payload received. Please check the request body.";
-        return NextResponse.json({ error: message }, { status: 400 });
-    }
-    if (error instanceof Error) {
-      message = error.message;
-    }
+    const message =
+      error instanceof Error ? error.message : "Failed to compare keywords.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

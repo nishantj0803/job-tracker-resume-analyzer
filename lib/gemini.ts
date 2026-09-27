@@ -1,5 +1,5 @@
-"use server"
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, type GenerativeModel } from "@google/generative-ai";
+import { normalizeMatchResult } from "./match";
 
 const API_KEY = process.env.GEMINI_API_KEY || "";
 let genAI: GoogleGenerativeAI | undefined;
@@ -11,8 +11,15 @@ if (API_KEY) {
     "GEMINI_API_KEY is not configured. AI functions will be disabled or return an error."
   );
 }
-const MODEL_NAME = "gemini-1.5-pro"; 
-export async function generateChatResponse(prompt: string, previousMessages: any[]): Promise<string> {
+/** Single model ID so chat / resume / keyword paths behave consistently. */
+export const GEMINI_MODEL = "gemini-2.0-flash";
+
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+export async function generateChatResponse(prompt: string, previousMessages: ChatMessage[]): Promise<string> {
   try {
     // For safety, check if API key is available
     if (!API_KEY) {
@@ -20,7 +27,7 @@ export async function generateChatResponse(prompt: string, previousMessages: any
     }
 
     // Get the model - update to use the correct model name
-    const model = genAI!.getGenerativeModel({ model: "gemini-2.0-flash" })
+    const model = genAI!.getGenerativeModel({ model: GEMINI_MODEL })
 
     // Convert previous messages to the format expected by Gemini
     const history = previousMessages
@@ -81,7 +88,7 @@ export async function analyzeResume(resumeText: string): Promise<any> {
     }
 
     // Update to use the correct model name
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" })
+    const model = genAI!.getGenerativeModel({ model: GEMINI_MODEL })
 
     const prompt = `
     Analyze the following resume and provide detailed feedback:
@@ -148,84 +155,89 @@ export async function analyzeResume(resumeText: string): Promise<any> {
   }
 }
 
-export async function compareKeywords(jobDescription: string, resumeText: string): Promise<any> {
+export async function compareKeywords(jobDescription: string, resumeText: string): Promise<Record<string, unknown>> {
   if (!genAI) {
-    console.error("GEMINI_LIB_ERROR: compareKeywords called but genAI is not initialized.");
     return {
       error: "Gemini AI client not initialized. Please check API key configuration.",
     };
   }
   try {
-    console.log("GEMINI_LIB_LOG: compareKeywords invoked.");
-    const model: GenerativeModel = genAI.getGenerativeModel({ model: MODEL_NAME });
+    const model: GenerativeModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
     const prompt = `
-    Compare the following job description with the resume text and identify matching and missing keywords:
-    
-    Job Description:
-    ${jobDescription}
-    
-    Resume:
-    ${resumeText}
-    
-    Please provide the analysis in the following JSON format:
+    You are a hiring-manager assistant. Compare the JOB DESCRIPTION against the RESUME and produce an EXPLAINABLE match.
+
+    JOB DESCRIPTION:
+    ${jobDescription.slice(0, 8000)}
+
+    RESUME:
+    ${resumeText.slice(0, 8000)}
+
+    Rules:
+    - Extract 5-15 core requirements from the JD (skills, tools, years, domain).
+    - "matched" = requirements with clear resume evidence. "missing" = the rest.
+    - Score 0-100 weighted: skills 50%, experience overlap 30%, seniority fit 20%.
+    - Be strict: keyword stuffing without evidence does not count as matched.
+    - Respond with VALID JSON ONLY, no markdown fences, in exactly this shape:
     {
-      "matching": ["<array of keywords that appear in both the job description and resume>"],
-      "missing": ["<array of important keywords from the job description that are missing in the resume>"],
-      "score": "<percentage match score from 0-100>"
+      "score": 78,
+      "matched": ["Python", "REST", "SQL"],
+      "missing": ["Kubernetes", "AWS Lambda"],
+      "experienceOverlap": "4/6 core requirements",
+      "experienceMatched": 4,
+      "experienceRequired": 6,
+      "breakdown": { "skillsMatch": 80, "experienceOverlap": 67, "seniorityFit": 75 },
+      "summary": "One or two sentences a recruiter would believe."
     }
-    
-    Ensure the response is valid JSON.
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    
+
     if (response.promptFeedback?.blockReason) {
-      console.error("GEMINI_LIB_ERROR: compareKeywords response blocked due to:", response.promptFeedback.blockReason, response.promptFeedback.safetyRatings);
       return { error: `AI response for keyword comparison was blocked: ${response.promptFeedback.blockReason}.` };
     }
 
     if (!response.candidates?.length) {
-      console.error("GEMINI_LIB_ERROR: No candidates returned from AI for compareKeywords. Full response:", JSON.stringify(response, null, 2));
       return { error: "AI returned no candidates for keyword comparison." };
     }
-    
+
     const text = response.text();
-    console.log("GEMINI_LIB_LOG: Raw text response from AI for compareKeywords:", text.substring(0, 200) + "...");
 
-
-    // Enhanced JSON parsing
-    let parsedResponse;
+    // Enhanced JSON parsing (fenced block, raw object, or full text)
+    let parsedResponse: unknown;
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/s) || text.match(/({[\s\S]*})/s);
 
-    if (jsonMatch && jsonMatch[1]) {
-        try {
-            parsedResponse = JSON.parse(jsonMatch[1]);
-            console.log("GEMINI_LIB_LOG: Successfully parsed JSON from fenced code block in compareKeywords.");
-        } catch (e) {
-            console.error("GEMINI_LIB_ERROR: Failed to parse JSON from fenced code block in compareKeywords, trying full text. Error:", e);
-            // Fall through to try parsing the whole text
-        }
+    if (jsonMatch?.[1]) {
+      try {
+        parsedResponse = JSON.parse(jsonMatch[1]);
+      } catch {
+        // fall through to full-text parse
+      }
     }
 
     if (!parsedResponse) {
-        try {
-            parsedResponse = JSON.parse(text);
-            console.log("GEMINI_LIB_LOG: Successfully parsed JSON directly from text in compareKeywords.");
-        } catch (e) {
-            console.error("GEMINI_LIB_ERROR: Failed to parse JSON directly from text in compareKeywords. Raw response:", text, "Error:", e);
-            return { error: "Failed to parse AI response for keyword comparison as JSON.", rawResponse: text };
-        }
+      try {
+        parsedResponse = JSON.parse(text);
+      } catch {
+        return { error: "Failed to parse AI response for keyword comparison as JSON.", rawResponse: text };
+      }
     }
-    return parsedResponse;
+
+    const normalized = normalizeMatchResult(parsedResponse);
+    // Keep legacy keys so existing clients don't break.
+    return {
+      score: normalized.score,
+      matching: normalized.matched,
+      matched: normalized.matched,
+      missing: normalized.missing,
+      experienceOverlap: normalized.experienceOverlap,
+      breakdown: normalized.breakdown,
+      summary: normalized.summary,
+    };
 
   } catch (error: unknown) {
-    console.error("GEMINI_LIB_ERROR: Error in compareKeywords function:", error);
-    let errorDetail = "An unknown error occurred during keyword comparison.";
-    if (error instanceof Error) { errorDetail = error.message; }
-    else if (typeof error === 'string') { errorDetail = error; }
-    // Add more specific error handling if needed for GoogleGenerativeAIError
-    return { error: `Sorry, an error occurred while comparing keywords. Details: ${errorDetail}` };
+    const detail = error instanceof Error ? error.message : typeof error === "string" ? error : "unknown error";
+    return { error: `Sorry, an error occurred while comparing keywords. Details: ${detail}` };
   }
 }
