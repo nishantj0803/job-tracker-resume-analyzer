@@ -6,198 +6,307 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowUpRight, BarChart3, BriefcaseBusiness, Calendar, Clock, FileText, Loader2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  BriefcaseBusiness,
+  CalendarClock,
+  FileText,
+  Trophy,
+  Users,
+} from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { MainNav } from "@/components/main-nav";
 import { useAuth } from "@/components/auth-provider";
-import { getUserDashboardData, type UserDashboardData } from "@/lib/actions"; // Import action and type
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { getUserDashboardData, type UserDashboardData } from "@/lib/actions";
+import { StatusStamp } from "@/components/status-stamp";
+import { EmptyState } from "@/components/empty-state";
+import { FlowerDoodle, SunDoodle, RainbowDoodle } from "@/components/doodles";
+
+function greeting(date: Date): string {
+  const h = date.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function deadlineLabel(iso: string): string {
+  const days = Math.ceil(
+    (new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+  );
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
+
+const STAT_CARDS = [
+  {
+    key: "totalApplications",
+    title: "Applications",
+    icon: BriefcaseBusiness,
+    fill: "bg-white",
+  },
+  {
+    key: "interviewing",
+    title: "Interviewing",
+    icon: Users,
+    fill: "bg-[#CFE6F5]",
+  },
+  {
+    key: "offers",
+    title: "Offers",
+    icon: Trophy,
+    fill: "bg-[#FFB800]",
+  },
+] as const;
 
 export default function DashboardPage() {
-  const { user } = useAuth(); // Get user
+  const { user } = useAuth();
   const [data, setData] = useState<UserDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [resumeScore, setResumeScore] = useState<number | null>(null);
-  const [resumeInsights, setResumeInsights] = useState<string[]>([]);
 
   useEffect(() => {
-    // Fetch dashboard data from the server action
     const fetchDashboardData = async () => {
       setIsLoading(true);
       const result = await getUserDashboardData();
-      if (result && !('error' in result)) {
+      if (result && !("error" in result)) {
         setData(result);
-      } else {
-        console.error("Failed to fetch dashboard data:", result?.error);
       }
       setIsLoading(false);
     };
 
-    // Fetch resume score and insights from localStorage
-    const getResumeDataFromStorage = () => {
-      try {
-        const storedResult = localStorage.getItem("resumeAnalysisResult");
-        if (storedResult) {
-          const analysisData = JSON.parse(storedResult);
-          const score = analysisData.score ?? analysisData.overall_score ?? null;
-          if (typeof score === 'number') {
-            setResumeScore(score);
-          }
-          // Assuming insights are an array of strings in the analysis result
-          if (Array.isArray(analysisData.feedback?.suggestions)) {
-            setResumeInsights(analysisData.feedback.suggestions.slice(0, 3)); // Take top 3 insights
-          }
-        }
-      } catch (error) {
-        console.error("Failed to parse resume analysis from localStorage", error);
+    try {
+      const storedResult = localStorage.getItem("resumeAnalysisResult");
+      if (storedResult) {
+        const analysisData = JSON.parse(storedResult);
+        const score = analysisData.score ?? analysisData.overall_score ?? null;
+        if (typeof score === "number") setResumeScore(score);
       }
-    };
+    } catch {
+      // No stored analysis; the resume card shows its empty state.
+    }
 
     fetchDashboardData();
-    getResumeDataFromStorage();
   }, []);
+
+  const firstName = user?.name?.split(" ")[0] ?? "there";
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <div className="flex min-h-screen flex-col">
       <MainNav />
       <DashboardShell>
-        <DashboardHeader
-          heading="Dashboard"
-          text="Track your job applications and resume performance."
-        />
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            {/* You can re-enable these tabs when you build them out */}
-            {/* <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
-            {/* <TabsTrigger value="upcoming">Upcoming</TabsTrigger> */}
-          </TabsList>
-          <TabsContent value="overview" className="space-y-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center p-12">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-                      <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{data?.stats.totalApplications ?? 0}</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Interviewing</CardTitle>
-                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{data?.stats.interviewing ?? 0}</div>
-                    </CardContent>
-                  </Card>
-                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Resume Score</CardTitle>
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      {resumeScore !== null ? (
-                        <>
-                          <div className="text-2xl font-bold">{resumeScore}/100</div>
-                          <div className="mt-2">
-                            <Progress value={resumeScore} className="h-2" />
-                          </div>
-                        </>
-                      ) : (
-                         <p className="text-sm text-muted-foreground">Analyze your resume to see your score.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                   <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Offers Received</CardTitle>
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">{data?.stats.offers ?? 0}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                  <Card className="col-span-4">
-                    <CardHeader>
-                      <CardTitle>Recent Applications</CardTitle>
-                      <CardDescription>Your 5 most recent job applications.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {data?.recentApplications && data.recentApplications.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Position</TableHead>
-                              <TableHead>Company</TableHead>
-                              <TableHead>Status</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {data.recentApplications.map(app => (
-                              <TableRow key={app.id}>
-                                <TableCell className="font-medium">
-                                   <Link href={`/jobs/${app.id}`} className="hover:underline">{app.position}</Link>
-                                </TableCell>
-                                <TableCell>{app.company}</TableCell>
-                                <TableCell><Badge variant="outline">{app.applicationStatus}</Badge></TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : (
-                        <p className="text-sm text-muted-foreground p-4 text-center">No recent applications to show.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                  <Card className="col-span-3">
-                    <CardHeader>
-                      <CardTitle>Resume Insights</CardTitle>
-                      <CardDescription>AI-powered suggestions to improve your resume.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {resumeInsights.length > 0 ? (
-                          resumeInsights.map((insight, index) => (
-                             <div key={index} className="flex items-start gap-4">
-                              <div className="rounded-full bg-primary/10 p-2">
-                                <FileText className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium leading-none">{insight}</p>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground text-center">No insights found. Analyze your resume for suggestions.</p>
-                        )}
+        <div className="flex items-start justify-between gap-4 px-2">
+          <DashboardHeader
+            heading={`${greeting(new Date())}, ${firstName}.`}
+            text={`${today}. Here is where the hunt stands.`}
+            className="px-0"
+          />
+          <FlowerDoodle className="hidden h-16 w-16 shrink-0 sm:block" />
+        </div>
 
-                        <Button variant="outline" className="w-full" asChild>
-                          <Link href="/resume">
-                            View Full Analysis
-                            <ArrowUpRight className="ml-2 h-4 w-4" />
-                          </Link>
-                        </Button>
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Card key={i} className="h-[132px] animate-pulse bg-muted/40" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {STAT_CARDS.map((card) => (
+                <Card
+                  key={card.key}
+                  className={`border-2 border-[#141414] shadow-[4px_4px_0_#141414] dark:border-[#F3F3EF] dark:shadow-[4px_4px_0_#F3F3EF] ${card.fill} dark:bg-card`}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-semibold">
+                      {card.title}
+                    </CardTitle>
+                    <card.icon className="h-4 w-4" strokeWidth={2.5} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="font-display tnum text-4xl font-bold">
+                      {data?.stats[card.key] ?? 0}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              <Card className="border-2 border-[#141414] bg-[#CDEBD9] shadow-[4px_4px_0_#141414] dark:border-[#F3F3EF] dark:bg-card dark:shadow-[4px_4px_0_#F3F3EF]">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-semibold">
+                    Resume score
+                  </CardTitle>
+                  <FileText className="h-4 w-4" strokeWidth={2.5} />
+                </CardHeader>
+                <CardContent>
+                  {resumeScore !== null ? (
+                    <>
+                      <div className="font-display tnum text-4xl font-bold">
+                        {resumeScore}
+                        <span className="text-lg text-muted-foreground">/100</span>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <Progress value={resumeScore} className="mt-2 h-2" />
+                    </>
+                  ) : (
+                    <Link
+                      href="/resume"
+                      className="text-sm font-medium underline decoration-[#FFB800] decoration-[3px] underline-offset-4"
+                    >
+                      Grade a resume
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="font-display text-lg font-bold">
+                    Pipeline
+                  </CardTitle>
+                  <Link
+                    href="/analytics"
+                    className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Full analytics
+                    <ArrowUpRight className="ml-1 h-4 w-4" />
+                  </Link>
                 </div>
-              </>
-            )}
-          </TabsContent>
-        </Tabs>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(data?.statusBreakdown ?? []).map((stage) => (
+                    <span
+                      key={stage.status}
+                      className="inline-flex items-center gap-2 rounded-[10px] border-2 border-[#141414] bg-white px-3 py-1.5 text-sm dark:border-[#F3F3EF] dark:bg-card"
+                    >
+                      <StatusStamp status={stage.status} />
+                      <span className="tnum font-bold">{stage.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="border-2 lg:col-span-2">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="font-display text-lg font-bold">
+                        Recent applications
+                      </CardTitle>
+                      <CardDescription>
+                        Your 5 most recent moves.
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/jobs">Browse jobs</Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {data?.recentApplications &&
+                  data.recentApplications.length > 0 ? (
+                    <ul className="divide-y divide-border">
+                      {data.recentApplications.map((app) => (
+                        <li
+                          key={app.id}
+                          className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div className="min-w-0">
+                            <Link
+                              href={`/jobs/${app.id}`}
+                              className="block truncate font-semibold hover:underline"
+                            >
+                              {app.position}
+                            </Link>
+                            <p className="truncate text-sm text-muted-foreground">
+                              {app.company}, applied{" "}
+                              {new Date(app.appliedDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <StatusStamp status={app.applicationStatus ?? "applied"} />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <EmptyState
+                      doodle={<SunDoodle className="h-14 w-14" />}
+                      title="No applications yet"
+                      body="Log the first one. The pipeline, stats, and deadlines all build from there."
+                      action={
+                        <Button asChild>
+                          <Link href="/jobs">Find a role</Link>
+                        </Button>
+                      }
+                    />
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
+                <Card className="border-2 border-[#141414] bg-[#FBD9C0] shadow-[4px_4px_0_#141414] dark:border-[#F3F3EF] dark:bg-card dark:shadow-[4px_4px_0_#F3F3EF]">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base font-bold">
+                      <CalendarClock className="h-4 w-4" strokeWidth={2.5} />
+                      Closing soon
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {data?.upcomingDeadlines &&
+                    data.upcomingDeadlines.length > 0 ? (
+                      <ul className="space-y-3">
+                        {data.upcomingDeadlines.map((job) => (
+                          <li key={job.id} className="text-sm">
+                            <Link
+                              href={`/jobs/${job.id}`}
+                              className="block font-semibold leading-snug hover:underline"
+                            >
+                              {job.position}
+                            </Link>
+                            <p className="mt-0.5 text-muted-foreground">
+                              {job.company}, closes {deadlineLabel(job.deadline)}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No open deadlines right now. New postings land on the
+                        jobs board.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-2">
+                  <CardContent className="flex items-center gap-4 pt-6">
+                    <RainbowDoodle className="h-12 w-16 shrink-0" />
+                    <div>
+                      <p className="font-semibold leading-snug">
+                        Keep the streak going
+                      </p>
+                      <Link
+                        href="/resume"
+                        className="mt-1 inline-block text-sm font-medium underline decoration-[#FFB800] decoration-[3px] underline-offset-4"
+                      >
+                        Match against a new role
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </>
+        )}
       </DashboardShell>
     </div>
   );

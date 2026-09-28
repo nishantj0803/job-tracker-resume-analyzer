@@ -584,7 +584,14 @@ export interface UserDashboardData {
     interviewing: number;
     offers: number;
   };
+  statusBreakdown: { status: ApplicationStatus; count: number }[];
   recentApplications: (Job & { applicationStatus?: string; appliedDate: string })[];
+  upcomingDeadlines: {
+    id: string;
+    position: string;
+    company: string;
+    deadline: string;
+  }[];
 }
 
 export async function getUserDashboardData(): Promise<UserDashboardData | { error: string }> {
@@ -627,6 +634,37 @@ export async function getUserDashboardData(): Promise<UserDashboardData | { erro
       offers: allUserApplications.filter(app => normalizeApplicationStatus(app.status) === 'offer').length,
     };
 
+    const breakdown = new Map<ApplicationStatus, number>();
+    for (const app of allUserApplications) {
+      const s = normalizeApplicationStatus(app.status);
+      breakdown.set(s, (breakdown.get(s) ?? 0) + 1);
+    }
+    const statusBreakdown = (["applied", "screening", "interview", "offer", "rejected"] as ApplicationStatus[]).map(
+      (status) => ({ status, count: breakdown.get(status) ?? 0 })
+    );
+
+    // Nearest open deadlines across active postings.
+    const openJobsRaw = await db
+      .collection("jobs")
+      .find({ status: "active" })
+      .sort({ application_deadline: 1 })
+      .limit(20)
+      .toArray();
+    const now = Date.now();
+    const upcomingDeadlines = openJobsRaw
+      .map((doc) => mongoDocToSerializableJob(doc))
+      .filter(
+        (job): job is Job =>
+          !!job?.application_deadline && new Date(job.application_deadline).getTime() >= now
+      )
+      .slice(0, 4)
+      .map((job) => ({
+        id: job.id,
+        position: job.position,
+        company: job.company,
+        deadline: job.application_deadline as string,
+      }));
+
     const recentApplications = recentApplicationsRaw.map(app => {
       if (!app.jobDetails) return null;
       const serializedJob = mongoDocToSerializableJob(app.jobDetails);
@@ -639,7 +677,7 @@ export async function getUserDashboardData(): Promise<UserDashboardData | { erro
       };
     }).filter(app => app !== null) as (Job & { applicationStatus: string; appliedDate: string })[];
 
-    return { stats, recentApplications };
+    return { stats, statusBreakdown, recentApplications, upcomingDeadlines };
 
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Unknown database error";

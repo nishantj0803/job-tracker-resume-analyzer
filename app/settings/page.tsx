@@ -21,9 +21,9 @@ export default function SettingsPage() {
   const { toast } = useToast()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [bio, setBio] = useState("Full Stack Developer with 5 years of experience")
-  const [location, setLocation] = useState("New York, NY")
-  const [website, setWebsite] = useState("https://example.com")
+  const [bio, setBio] = useState("")
+  const [location, setLocation] = useState("")
+  const [website, setWebsite] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
@@ -85,16 +85,16 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bio">Professional Bio</Label>
-                  <Input id="bio" value={bio} onChange={(e) => setBio(e.target.value)} />
+                  <Input id="bio" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="What you do, in one line" />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} />
+                    <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, Country" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="website">Website</Label>
-                    <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                    <Input id="website" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://your-site.com" />
                   </div>
                 </div>
               </CardContent>
