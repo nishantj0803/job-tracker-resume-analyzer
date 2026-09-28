@@ -12,7 +12,13 @@ import {
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { MainNav } from "@/components/main-nav";
-import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import {
+  StageDonut,
+  StageLegend,
+  CompanyBars,
+  ActivityArea,
+  FunnelRows,
+} from "@/components/analytics-charts";
 import { getUserApplicationStats } from "@/lib/actions";
 import type { UserApplicationStats } from "@/lib/actions";
 import {
@@ -35,14 +41,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 
 function LoadingState() {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i}>
+          <Card key={i} className="border-2">
             <CardHeader>
               <Skeleton className="h-5 w-3/5" />
             </CardHeader>
@@ -52,44 +57,21 @@ function LoadingState() {
           </Card>
         ))}
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Skeleton className="h-6 w-1/2" />
-            </CardTitle>
-            <CardDescription>
-              <Skeleton className="h-4 w-3/4" />
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <Skeleton className="h-full w-full" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Skeleton className="h-6 w-1/2" />
-            </CardTitle>
-            <CardDescription>
-              <Skeleton className="h-4 w-3/4" />
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <Skeleton className="h-full w-full" />
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-2">
+        <CardContent className="h-[300px] pt-6">
+          <Skeleton className="h-full w-full" />
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 text-center">
+    <div className="flex flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-[#141414]/30 px-6 py-12 text-center dark:border-[#F3F3EF]/30">
       <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground" />
-      <h3 className="mt-4 text-lg font-semibold">No Application Data Found</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <h3 className="font-display mt-4 text-xl font-bold">No application data found</h3>
+      <p className="mt-2 max-w-[44ch] text-sm text-muted-foreground">
         Start tracking your job applications to see your personalized analytics
         here.
       </p>
@@ -105,6 +87,13 @@ const STATUS_OPTIONS = [
   "offer",
   "rejected",
 ] as const;
+
+const STAT_STYLES = [
+  { fill: "bg-white dark:bg-card", icon: BriefcaseBusiness },
+  { fill: "bg-[#CFE6F5] dark:bg-card", icon: Reply },
+  { fill: "bg-[#FFB800] dark:bg-card", icon: Percent },
+  { fill: "bg-[#CDEBD9] dark:bg-card", icon: Trophy },
+];
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<UserApplicationStats | null>(null);
@@ -161,8 +150,8 @@ export default function AnalyticsPage() {
 
     if (error) {
       return (
-        <div className="flex items-center justify-center p-6 bg-destructive/10 border border-destructive/30 rounded-md text-destructive">
-          <AlertCircle className="h-6 w-6 mr-3" />
+        <div className="flex items-center justify-center rounded-[10px] border-2 border-destructive bg-destructive/10 p-6 text-destructive">
+          <AlertCircle className="mr-3 h-6 w-6" />
           <p>Error loading analytics: {error}</p>
         </div>
       );
@@ -172,173 +161,99 @@ export default function AnalyticsPage() {
       return <EmptyState />;
     }
 
-    const funnel = stats.funnel ?? [];
+    const statDefs = [
+      { title: "Total applications", value: `${stats.totalApplications}`, note: "Jobs you went after." },
+      { title: "Response rate", value: `${stats.responseRate ?? 0}%`, note: "Heard back, in any form." },
+      { title: "Interview rate", value: `${stats.interviewRate}%`, note: "Made it to interviews." },
+      { title: "Offer rate", value: `${stats.offerRate}%`, note: "Closed with offers." },
+    ];
 
     return (
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Applications
-              </CardTitle>
-              <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.totalApplications}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total jobs you have applied to.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Response Rate
-              </CardTitle>
-              <Reply className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.responseRate ?? 0}%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Screening, interview, or offer.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Interview Rate
-              </CardTitle>
-              <Percent className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.interviewRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                From applications to interviews.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Offer Rate</CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.offerRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                From applications to offers.
-              </p>
-            </CardContent>
-          </Card>
+          {statDefs.map((s, i) => {
+            const style = STAT_STYLES[i % STAT_STYLES.length];
+            const Icon = style.icon;
+            return (
+              <Card
+                key={s.title}
+                className={`border-2 border-[#141414] shadow-[4px_4px_0_#141414] dark:border-[#F3F3EF] dark:shadow-[4px_4px_0_#F3F3EF] ${style.fill}`}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-semibold">{s.title}</CardTitle>
+                  <Icon className="h-4 w-4" strokeWidth={2.5} />
+                </CardHeader>
+                <CardContent>
+                  <div className="font-display tnum text-4xl font-bold">{s.value}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{s.note}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
-        {/* Pipeline funnel: Applied → Screening → Interview → Offer */}
-        {funnel.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Pipeline Funnel</CardTitle>
-              <CardDescription>
-                Applied → Screening → Interview → Offer / Rejected. Counts are
-                cumulative: reaching a later stage implies the earlier ones.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {funnel
-                .filter((f) => f.stage !== "rejected")
-                .map((f) => (
-                  <div key={f.stage} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium capitalize">
-                        {f.stage}{" "}
-                        <span className="text-muted-foreground">
-                          · {f.count} ({f.reachRate}% of total)
-                        </span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {f.conversionFromPrevious === null
-                          ? "entry"
-                          : `${f.conversionFromPrevious}% from previous`}
-                      </span>
-                    </div>
-                    <Progress value={f.reachRate} className="h-2" />
-                  </div>
-                ))}
-              {funnel.find((f) => f.stage === "rejected") && (
-                <p className="text-xs text-muted-foreground pt-1">
-                  Rejected: {funnel.find((f) => f.stage === "rejected")?.count}{" "}
-                  (
-                  {funnel.find((f) => f.stage === "rejected")?.reachRate}% of
-                  total)
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="font-display text-lg font-bold">
+              Pipeline funnel
+            </CardTitle>
+            <CardDescription>
+              Applied to offer, with carry-over between stages. Counts are
+              cumulative.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FunnelRows funnel={stats.funnel ?? []} />
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+          <Card className="border-2">
             <CardHeader>
-              <CardTitle>Application Status</CardTitle>
+              <CardTitle className="font-display text-lg font-bold">
+                Where things stand
+              </CardTitle>
               <CardDescription>
-                Distribution of your application outcomes.
+                Every application, grouped by stage.
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
-              <PieChart
-                data={stats.statusDistribution}
-                index="name"
-                categories={["value"]}
-                valueFormatter={(value) => `${value} application(s)`}
-                className="h-[300px]"
-              />
+            <CardContent>
+              <StageDonut data={stats.statusDistribution} />
+              <StageLegend data={stats.statusDistribution} />
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-2">
             <CardHeader>
-              <CardTitle>Top Companies Applied To</CardTitle>
+              <CardTitle className="font-display text-lg font-bold">
+                Who you chase most
+              </CardTitle>
               <CardDescription>
                 Your most frequent application targets.
               </CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px]">
-              <BarChart
-                data={stats.applicationsPerCompany}
-                index="name"
-                categories={["value"]}
-                valueFormatter={(value) => `${value} application(s)`}
-                className="h-[300px]"
-              />
+            <CardContent>
+              <CompanyBars data={stats.applicationsPerCompany} />
             </CardContent>
           </Card>
         </div>
-        <Card>
+
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle>Application Activity</CardTitle>
+            <CardTitle className="font-display text-lg font-bold">
+              Pace over time
+            </CardTitle>
             <CardDescription>
-              Number of applications sent over time.
+              Applications sent per month.
             </CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
-            <LineChart
-              data={stats.applicationActivity}
-              index="name"
-              categories={["value"]}
-              colors={["primary"]}
-              valueFormatter={(value) => `${value} application(s)`}
-              className="h-[300px]"
-            />
+          <CardContent>
+            <ActivityArea data={stats.applicationActivity} />
           </CardContent>
         </Card>
 
-        {/* Filterable application list */}
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="font-display flex items-center gap-2 text-lg font-bold">
               <Filter className="h-4 w-4" /> Applications
             </CardTitle>
             <CardDescription>
@@ -346,20 +261,18 @@ export default function AnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
-                placeholder="Search company or position…"
+                placeholder="Search company or position..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="sm:max-w-xs"
+                className="border-2 sm:max-w-xs"
               />
               <Select
                 value={statusFilter}
-                onValueChange={(v) =>
-                  setStatusFilter(v as typeof statusFilter)
-                }
+                onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
               >
-                <SelectTrigger className="sm:w-[180px]">
+                <SelectTrigger className="border-2 sm:w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -374,39 +287,38 @@ export default function AnalyticsPage() {
               </Select>
             </div>
             {filteredApplications.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
+              <p className="py-6 text-center text-sm text-muted-foreground">
                 No applications match this filter.
               </p>
             ) : (
-              <div className="space-y-2">
+              <ul className="divide-y divide-border">
                 {filteredApplications.slice(0, 50).map((app) => (
-                  <div
+                  <li
                     key={app.id}
-                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
+                    className="flex items-center justify-between gap-3 py-2.5"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="truncate text-sm font-semibold">
                         {app.position}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {app.company} ·{" "}
+                      <p className="tnum truncate text-xs text-muted-foreground">
+                        {app.company},{" "}
                         {app.appliedAt
                           ? new Date(app.appliedAt).toLocaleDateString()
-                          : "—"}
+                          : "date unknown"}
                       </p>
                     </div>
-                    <Badge variant="outline" className="capitalize shrink-0">
+                    <Badge variant="outline" className="shrink-0 capitalize">
                       {app.status}
                     </Badge>
-                  </div>
+                  </li>
                 ))}
-                {filteredApplications.length > 50 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Showing 50 of {filteredApplications.length} — refine your
-                    search.
-                  </p>
-                )}
-              </div>
+              </ul>
+            )}
+            {filteredApplications.length > 50 && (
+              <p className="text-center text-xs text-muted-foreground">
+                Showing 50 of {filteredApplications.length}. Refine your search.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -420,7 +332,7 @@ export default function AnalyticsPage() {
       <DashboardShell>
         <DashboardHeader
           heading="Analytics"
-          text="Track your job search progress and identify patterns to improve your strategy."
+          text="Where the search stands, and where it stalls."
         />
         {renderContent()}
       </DashboardShell>

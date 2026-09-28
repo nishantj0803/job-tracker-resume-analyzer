@@ -64,6 +64,12 @@ PORT=5001 python app.py       # http://localhost:5001/analyze
 
 Seed an admin user via `/register`, then set `role: "admin"` directly in `users_auth` (there is no public admin signup by design).
 
+```bash
+# Fill the app with realistic demo data (tagged, reversible)
+npm run seed -- --email=you@example.com  # 12 jobs + 22 applications
+npm run seed -- --clear                   # remove everything seeded
+```
+
 ## Testing
 
 ```bash
