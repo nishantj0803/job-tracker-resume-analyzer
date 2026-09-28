@@ -97,3 +97,5 @@ coverage/
 # you might choose to ignore it if you primarily use a requirements.txt for the Python part.
 # However, if it's curated for the project, it's often better to commit it.
 # python-resume-analyzer/environment.yml # Consider if this should be ignored or not
+# TypeScript incremental build info
+tsconfig.tsbuildinfo
