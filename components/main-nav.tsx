@@ -43,7 +43,7 @@ export function MainNav() {
   ]
 
   return (
-    <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b-2 border-[#141414] bg-background/95 backdrop-blur dark:border-[#F3F3EF]">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2 font-semibold">
           <Link href={user ? "/dashboard" : "/"} className="flex items-center gap-2">
@@ -56,14 +56,17 @@ export function MainNav() {
 
         {user ? (
           <>
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-1">
               {routes.map((route) => (
                 <Link
                   key={route.href}
                   href={route.href}
+                  aria-current={route.active ? "page" : undefined}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
-                    route.active ? "text-primary" : "text-muted-foreground",
+                    "rounded-[8px] px-3 py-1.5 text-sm font-medium transition-all",
+                    route.active
+                      ? "border-2 border-[#141414] bg-[#FFB800] font-bold text-[#141414] shadow-[2px_2px_0_#141414] dark:border-[#F3F3EF] dark:shadow-[2px_2px_0_#F3F3EF]"
+                      : "border-2 border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {route.label}

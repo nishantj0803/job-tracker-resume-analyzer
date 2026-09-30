@@ -45,32 +45,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== "undefined" && !isLoading) {
-      // Moved constants to the component's top level
-      // const publicLandingPages = ["/", "/demo"];
-      // const authPages = ["/login", "/register", "/admin/login"];
-      // const adminDashboardRoute = "/admin/dashboard";
-      // const userDashboardRoute = "/dashboard";
-
-      console.log("AuthProvider Protection useEffect:", { status, pathname, user: appUser, isLoading });
-
       if (status === "authenticated" && appUser) {
-        console.log("AuthProvider: Authenticated. Role:", appUser.role, "Path:", pathname);
         if (appUser.role === "admin") {
           if (authPages.includes(pathname)) {
-            console.log("AuthProvider: Admin on auth page, redirecting to admin dashboard.");
             router.push(adminDashboardRoute);
           } else if (!pathname.startsWith('/admin/') && !publicLandingPages.some(p => pathname.startsWith(p)) && pathname !== "/dashboard") {
              if(pathname === userDashboardRoute) {
-                console.log("AuthProvider: Admin on user dashboard, redirecting to admin dashboard.");
                 router.push(adminDashboardRoute);
              }
           }
         } else { // appUser.role === "user"
           if (authPages.includes(pathname)) {
-            console.log("AuthProvider: User on auth page, redirecting to user dashboard.");
             router.push(userDashboardRoute);
           } else if (pathname.startsWith('/admin/')) {
-            console.log("AuthProvider: User trying to access admin area, redirecting to user dashboard.");
             toast({
               title: "Access Denied",
               description: "You don't have permission to access this admin page.",
@@ -84,7 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const isPublicLandingPage = publicLandingPages.some(p => pathname.startsWith(p));
 
         if (!isAuthPage && !isPublicLandingPage && !pathname.startsWith('/api/')) {
-          console.log("AuthProvider: Unauthenticated on protected route, redirecting to appropriate login. Path:", pathname);
           if (pathname.startsWith('/admin/')) {
             router.push("/admin/login");
           } else {
@@ -96,13 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [status, appUser, isLoading, pathname, router, toast]);
 
   const login = async (email: string, password: string) => {
-    console.log("AuthProvider: Attempting NextAuth login for email:", email);
     const result = await signIn("credentials", {
       redirect: false,
       email,
       password,
     });
-    console.log("AuthProvider Login: signIn result:", result);
 
     if (result?.error) {
       console.error("AuthProvider: NextAuth Login failed:", result.error);
@@ -113,18 +97,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       throw new Error(result.error);
     } else if (result?.ok) {
-      toast({ title: "Login successful!" });
+      toast({ title: "Login successful" });
     }
   };
 
   const adminLogin = async (email: string, password: string) => {
-    console.log("AuthProvider: Attempting NextAuth adminLogin for email:", email);
     const result = await signIn("credentials", {
       redirect: false,
       email,
       password,
     });
-    console.log("AuthProvider AdminLogin: signIn result:", result);
 
     if (result?.error) {
       console.error("AuthProvider: NextAuth Admin Login failed:", result.error);
@@ -135,12 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       throw new Error(result.error);
     } else if (result?.ok) {
-      toast({ title: "Admin Login Attempt Successful!" });
+      toast({ title: "Admin login successful" });
     }
   };
 
   const register = async (name: string, email: string, password: string) => {
-    console.log("AuthProvider: Attempting registration for email:", email);
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -149,10 +130,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Registration failed.");
-      toast({
-        title: "Registration Successful",
-        description: data.message || "Please log in with your new account.",
-      });
       router.push("/login");
     } catch (error) {
       console.error("AuthProvider: Registration failed:", error);
@@ -166,10 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    console.log("AuthProvider: Attempting NextAuth logout.");
     const CurerntPathisadmin = pathname.startsWith('/admin')
     await signOut({ redirect: false });
-    toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    toast({ title: "Logged out", description: "You have been signed out." });
     if (CurerntPathisadmin){
       router.push("/admin/login");
     } else {

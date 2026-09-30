@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpDown, CheckCircle2, FileText, Info, Loader2, MessageSquareWarning, XCircle, Eye, ListChecks, SearchCheck, BrainCircuit } from "lucide-react";
+import { ArrowUpDown, CheckCircle2, FileText, Info, Loader2, MessageSquareWarning, XCircle, Eye, ListChecks, SearchCheck, BrainCircuit, PenLine, ScanSearch, Tags } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { ResumeUploader } from "@/components/resume-uploader";
@@ -53,7 +53,7 @@ const SectionDetailCard: React.FC<SectionDetailProps> = ({ title, data, metric1N
   const metric2Value = data.impact ?? data.quantifiableResults ?? data.organization;
 
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-none">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
@@ -91,13 +91,11 @@ export default function ResumePage() {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
 
   const loadAnalysisFromStorage = useCallback(() => {
-    console.log("ResumePage: Attempting to load analysis from localStorage.");
     setIsLoadingAnalysis(true);
     const storedResult = localStorage.getItem("resumeAnalysisResult");
     if (storedResult) {
       try {
         const parsedResult = JSON.parse(storedResult) as ResumeAnalysisResult;
-        console.log("ResumePage: Parsed analysis from localStorage:", parsedResult);
         setAnalysisResult(parsedResult);
         // If we loaded a result (even an error one), and the URL doesn't specify a tab, switch to analysis.
         if (!searchParams.get("tab")) {
@@ -111,7 +109,6 @@ export default function ResumePage() {
         }
       }
     } else {
-      console.log("ResumePage: No resumeAnalysisResult found in localStorage.");
       setAnalysisResult(null); // No data to show
     }
     setIsLoadingAnalysis(false);
@@ -167,7 +164,7 @@ export default function ResumePage() {
 
     if (analysisResult?.error) {
       return (
-        <Card className="mt-4 border-destructive bg-destructive/5">
+        <Card className="mt-4 border-destructive bg-destructive/5 dark:border-destructive">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2"><MessageSquareWarning /> Analysis Error</CardTitle>
           </CardHeader>
@@ -206,19 +203,19 @@ export default function ResumePage() {
           </CardHeader>
           <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { title: "Overall Score", value: analysisResult.score, Icon: FileText },
-              { title: "Content Quality", value: analysisResult.contentQuality, Icon: FileText },
-              { title: "ATS Compatibility", value: analysisResult.atsCompatibility, Icon: FileText },
-              { title: "Keyword Optimization", value: analysisResult.keywordOptimization, Icon: FileText },
-            ].map(({ title, value, Icon }) => (
-              <Card key={title} className="shadow-sm">
+              { title: "Overall Score", value: analysisResult.score, Icon: FileText, fill: "bg-white dark:bg-card" },
+              { title: "Content Quality", value: analysisResult.contentQuality, Icon: PenLine, fill: "bg-[#CFE6F5] dark:bg-card" },
+              { title: "ATS Compatibility", value: analysisResult.atsCompatibility, Icon: ScanSearch, fill: "bg-[#CDEBD9] dark:bg-card" },
+              { title: "Keyword Optimization", value: analysisResult.keywordOptimization, Icon: Tags, fill: "bg-[#FFB800] dark:bg-card" },
+            ].map(({ title, value, Icon, fill }) => (
+              <Card key={title} className={`shadow-none ${fill}`}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+                  <Icon className="h-4 w-4" strokeWidth={2.5} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{value ?? "N/A"}{typeof value === 'number' ? "/100" : ""}</div>
-                  {typeof value === 'number' && <Progress value={value} className="h-2 mt-1" aria-label={`${title}: ${value} out of 100`} />}
+                  <div className="font-display tnum text-4xl font-bold">{value ?? "N/A"}{typeof value === 'number' ? <span className="text-base text-muted-foreground">/100</span> : ""}</div>
+                  {typeof value === 'number' && <Progress value={value} className="h-2 mt-2" aria-label={`${title}: ${value} out of 100`} />}
                 </CardContent>
               </Card>
             ))}
@@ -264,7 +261,7 @@ export default function ResumePage() {
                 {analysisResult.keywords?.present && analysisResult.keywords.present.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analysisResult.keywords.present.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-green-50 border-green-400 text-green-700 dark:bg-green-900/40 dark:border-green-600 dark:text-green-300 text-xs"> {keyword} </Badge>
+                      <Badge key={index} className="border-2 border-[#141414] bg-[#CDEBD9] text-[#141414] shadow-[2px_2px_0_#141414] dark:border-[#F3F3EF] dark:bg-[#CDEBD9] dark:text-[#141414] dark:shadow-[2px_2px_0_#F3F3EF]"> {keyword} </Badge>
                     ))}
                   </div>
                 ) : (<p className="text-sm text-muted-foreground">No prominent keywords were automatically identified.</p>)}
@@ -277,7 +274,7 @@ export default function ResumePage() {
                  {analysisResult.keywords?.missing && analysisResult.keywords.missing.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {analysisResult.keywords.missing.map((keyword, index) => (
-                      <Badge key={index} variant="outline" className="bg-red-50 border-red-400 text-red-700 dark:bg-red-900/40 dark:border-red-600 dark:text-red-300 text-xs"> {keyword} </Badge>
+                      <Badge key={index} className="border-2 border-[#141414] bg-[#FBD9C0] text-[#141414] shadow-[2px_2px_0_#141414] dark:border-[#F3F3EF] dark:bg-[#FBD9C0] dark:text-[#141414] dark:shadow-[2px_2px_0_#F3F3EF]"> {keyword} </Badge>
                     ))}
                   </div>
                  ) : (<p className="text-sm text-muted-foreground">No critical missing keywords flagged for general analysis. Use the Keyword Matcher for job-specific insights.</p>)}

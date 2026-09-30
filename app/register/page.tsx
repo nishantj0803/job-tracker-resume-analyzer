@@ -1,3 +1,4 @@
+// File: app/register/page.tsx
 "use client"
 
 import type React from "react"
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Briefcase, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useAuth } from "@/components/auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -38,13 +39,13 @@ export default function RegisterPage() {
     try {
       await register(name, email, password)
       toast({
-        title: "Registration successful",
-        description: "Welcome to JobTrackr!",
+        title: "Account created",
+        description: "You are signed in. Start tracking applications.",
       })
-    } catch (error) {
+    } catch {
       toast({
         title: "Registration failed",
-        description: "There was an error creating your account.",
+        description: "We couldn't create your account. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -53,20 +54,34 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center justify-center">
-          <div className="flex items-center gap-2 font-semibold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary text-primary-foreground">
-              <Briefcase className="h-5 w-5" strokeWidth={2.5} />
-            </span>
-            <span className="font-display text-2xl font-bold tracking-tight">JobTrackr</span>
-          </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-muted/40 px-4 py-12">
+      <div aria-hidden className="grain-overlay" />
+
+      <div className="relative w-full max-w-md">
+        <Link
+          href="/"
+          className="mb-6 flex items-center justify-center gap-2 font-semibold"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-[10px] border-2 border-[#141414] bg-[#FFB800] text-[#141414] shadow-[2px_2px_0_#141414] dark:border-[#F3F3EF] dark:shadow-[2px_2px_0_#F3F3EF]">
+            <span className="font-display text-sm font-bold">JT</span>
+          </span>
+          <span className="font-display text-2xl font-bold tracking-tight">
+            JobTrackr
+          </span>
+        </Link>
+
+        <div className="mb-4 text-center">
+          <span className="inline-block rotate-2 rounded-[10px] border-2 border-[#141414] bg-[#FFB800] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#141414] shadow-[2px_2px_0_#141414] dark:border-[#F3F3EF] dark:shadow-[2px_2px_0_#141414] dark:text-[#141414]">
+            Free to start
+          </span>
         </div>
+
         <Card>
           <CardHeader>
-            <CardTitle>Create an account</CardTitle>
-            <CardDescription>Enter your information to create an account</CardDescription>
+            <CardTitle className="text-2xl">Create an account</CardTitle>
+            <CardDescription>
+              Track every application from applied to offer.
+            </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
@@ -74,7 +89,7 @@ export default function RegisterPage() {
                 <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
-                  placeholder="John Doe"
+                  placeholder="Rhea Kapoor"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -125,8 +140,8 @@ export default function RegisterPage() {
               </Button>
               <div className="text-center text-sm">
                 Already have an account?{" "}
-                <Link href="/login" className="text-primary hover:underline">
-                  Login
+                <Link href="/login" className="font-medium underline decoration-[#FFB800] decoration-[3px] underline-offset-4">
+                  Log in
                 </Link>
               </div>
             </CardFooter>

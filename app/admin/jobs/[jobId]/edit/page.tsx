@@ -56,7 +56,6 @@ export default function EditAdminJobPage() {
       setIsLoadingJob(true);
       getJobById(jobId)
         .then((data) => {
-            console.log("EditPage: Data received from getJobById:", data); 
           if (data) {
             
             setJob(data);

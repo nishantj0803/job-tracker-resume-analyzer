@@ -185,7 +185,7 @@ export function KeywordMatcher() {
       </Card>
 
       {!isLoadingResumeText && !resumeTextForMatcher && (
-        <Card className="border-destructive">
+        <Card className="border-destructive dark:border-destructive">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2">
               <Info size={20} /> Resume Text Not Available

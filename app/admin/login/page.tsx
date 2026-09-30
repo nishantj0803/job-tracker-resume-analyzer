@@ -20,8 +20,7 @@ export default function LoginPage() {
   const { toast } = useToast() // useToast is likely from your UI library
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // This is important to prevent default form submission
-    console.log("LoginPage: handleSubmit called with email:", email); // <-- ADD THIS LOG
+    e.preventDefault();
 
     if (!email || !password) {
       toast({
@@ -35,13 +34,11 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log("LoginPage: Calling login function from useAuth..."); // <-- ADD THIS LOG
       await login(email, password);
-      console.log("LoginPage: login function call completed."); // <-- ADD THIS LOG
-      // Success toast is now handled within the login function in AuthProvider
+      // Success toast is handled within the login function in AuthProvider
     } catch (error) {
-      console.error("LoginPage: Error caught after calling login function:", error); // <-- ADD THIS LOG
-      // Failure toast is now handled within the login function in AuthProvider
+      console.error("LoginPage: Error caught after calling login function:", error);
+      // Failure toast is handled within the login function in AuthProvider
     } finally {
       setIsLoading(false);
     }

@@ -59,10 +59,8 @@ export function AdminJobsTable({ limit }: AdminJobsTableProps) {
       if (!confirm(`Are you sure you want to delete the job: "${jobPosition}"? This action cannot be undone.`)) {
         return;
       }
-      console.log(`AdminJobsTable: Attempting to delete job ID: ${jobId}, Position: ${jobPosition}`);
       try {
         const result = await deleteJob(jobId); // Call the server action
-        console.log(`AdminJobsTable: deleteJob server action result:`, result);
     
         if (result.error) {
           toast({ title: "Error Deleting Job", description: result.error, variant: "destructive" });

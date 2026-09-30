@@ -39,9 +39,15 @@ export default function RootLayout({
               attribute="class"
               defaultTheme="system"
               enableSystem
-            ><main className="flex-1 p-4 md:p-8">
+            ><a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[70] focus:rounded-[10px] focus:border-2 focus:border-[#141414] focus:bg-[#FFB800] focus:px-5 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-[#141414]"
+            >
+              Skip to content
+            </a>
+              <div id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-8">
               {children}
-              </main>
+              </div>
               <Toaster />
             </ThemeProvider>
           </AuthProvider>
